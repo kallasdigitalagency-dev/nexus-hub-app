@@ -54,18 +54,26 @@ export default function NexusHubApp() {
     }
   };
 
-  // FILTRE DE MODÉRATION IA RENFORCÉ (Anti-contournement)
+  // FILTRE DE MODÉRATION IA (Anti-contournement & Anti-vulgarité)
   const handleCreateProject = async (e) => {
     e.preventDefault();
-    setModerationNotice('Analyse de conformité par IA en cours...');
+    setModerationNotice('Analyse éthique par IA en cours...');
 
     const textToCheck = (newProject.title + ' ' + newProject.summary).toLowerCase();
 
-    // 1. Détection des termes interdits
-    const forbiddenTerms = ['spam', 'arnaque', 'casino', 'hack', 'illegal'];
-    const hasForbiddenWord = forbiddenTerms.some(term => textToCheck.includes(term));
+    // 1. Dictionnaire d'insultes, vulgarités et escroqueries (FR & EN)
+    const forbiddenTerms = [
+      'merde', 'connard', 'conne', 'putain', 'salope', 'encule', 'enculé', 'chier', 'bâtard', 'batard',
+      'fuck', 'shit', 'bitch', 'asshole', 'bastard',
+      'spam', 'arnaque', 'casino', 'hack', 'illegal', 'illégal'
+    ];
+    
+    const hasProfanity = forbiddenTerms.some(term => {
+      const regex = new RegExp(`\\b${term}\\b`, 'i');
+      return regex.test(textToCheck);
+    });
 
-    // 2. Détection d'e-mails (présence de @)
+    // 2. Détection d'e-mails
     const emailRegex = /[\w.-]+@[\w.-]+\.\w+/;
     const hasEmail = emailRegex.test(textToCheck);
 
@@ -73,8 +81,13 @@ export default function NexusHubApp() {
     const phoneRegex = /\b\d{6,}\b/;
     const hasPhone = phoneRegex.test(textToCheck);
 
-    if (hasForbiddenWord || hasEmail || hasPhone) {
-      setModerationNotice('⚠️ Projet rejeté par l\'IA : Le partage de numéros de téléphone, d\'e-mails ou de coordonnées directes est interdit dans les descriptions pour protéger l\'intermédiation de la plateforme.');
+    if (hasProfanity) {
+      setModerationNotice('⚠️ Projet rejeté par l\'IA : Le titre ou la description contient des mots vulgaires ou inappropriés.');
+      return;
+    }
+
+    if (hasEmail || hasPhone) {
+      setModerationNotice('⚠️ Projet rejeté par l\'IA : Le partage de numéros de téléphone, d\'e-mails ou de coordonnées directes est interdit pour protéger l\'intermédiation de la plateforme.');
       return;
     }
 
@@ -200,7 +213,7 @@ export default function NexusHubApp() {
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15,23,42,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, backdropFilter: 'blur(4px)' }}>
           <div style={{ backgroundColor: '#ffffff', padding: '2rem', borderRadius: '12px', width: '90%', maxWidth: '520px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
             <h3 style={{ marginTop: 0, marginBottom: '0.5rem', color: '#0f172a', fontWeight: '800' }}>Publier une Idée / Projet [FLASH]</h3>
-            <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.25rem' }}>L'IA bloque automatiquement les e-mails, numéros de téléphone et le contournement de la plateforme.</p>
+            <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.25rem' }}>L'IA vérifie le langage et bloque automatiquement les contacts directs et vulgarités.</p>
             
             {moderationNotice && (
               <div style={{ backgroundColor: moderationNotice.includes('⚠️') ? '#fef2f2' : '#eff6ff', color: moderationNotice.includes('⚠️') ? '#991b1b' : '#1e40af', padding: '0.75rem', borderRadius: '6px', fontSize: '0.85rem', marginBottom: '1rem', fontWeight: '600' }}>
@@ -214,7 +227,7 @@ export default function NexusHubApp() {
                 <input required type="text" placeholder="Ex: Application de santé" value={newProject.title} onChange={e => setNewProject({...newProject, title: e.target.value})} style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }} />
               </div>
               <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem' }}>Résumé du concept (Sans e-mail ni téléphone) :</label>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem' }}>Résumé du concept :</label>
                 <textarea required rows="3" placeholder="Décrivez la valeur de votre projet..." value={newProject.summary} onChange={e => setNewProject({...newProject, summary: e.target.value})} style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }}></textarea>
               </div>
               <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.25rem' }}>
