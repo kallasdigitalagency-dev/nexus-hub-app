@@ -7,14 +7,17 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export default function NexusHubApp() {
   const [session, setSession] = useState(null);
-  const [authMode, setAuthMode] = useState('signin'); // 'signin' ou 'signup'
+  const [authMode, setAuthMode] = useState('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [userRole, setUserRole] = useState('Entrepreneur');
   const [authError, setAuthError] = useState('');
 
-  const [activeTab, setActiveTab] = useState('projects');
+  const [activeTab, setActiveTab] = useState('projects'); // 'projects', 'providers', 'investors', 'dashboard'
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [investorFilter, setInvestorFilter] = useState('All');
+
+  // Données Projets
   const [projects, setProjects] = useState([
     {
       id: '1',
@@ -25,17 +28,39 @@ export default function NexusHubApp() {
       equity_offered: 15,
       stage: 'Prototype / MVP',
       currency: 'USD',
-      owner: 'Willy B.',
+      owner: 'willy.b@example.com',
+      status: 'verified'
+    }
+  ]);
+
+  // Données Prestataires
+  const [providers, setProviders] = useState([
+    {
+      id: 'p1',
+      name: 'Kallas Digital Agency',
+      service: 'Développement Web & Mobile React / Supabase',
+      rate: 'Sur devis',
+      contact_person: 'Équipe Tech',
+      status: 'verified'
+    },
+    {
+      id: 'p2',
+      name: 'Audit & Conseil Finance East Africa',
+      service: 'Montage financier, audit léger et modélisation CAPEX/OPEX',
+      rate: '50$/heure',
+      contact_person: 'Expert Financier',
       status: 'verified'
     }
   ]);
 
   const [showModal, setShowModal] = useState(false);
+  const [showProviderModal, setShowProviderModal] = useState(false);
   const [contactModal, setContactModal] = useState(null);
   const [moderationNotice, setModerationNotice] = useState('');
   const [contactMessage, setContactMessage] = useState('');
   const [contactSent, setContactSent] = useState(false);
 
+  // Formulaires
   const [newProject, setNewProject] = useState({
     title: '',
     summary: '',
@@ -44,7 +69,13 @@ export default function NexusHubApp() {
     equity_offered: ''
   });
 
-  // Gestion de la session Supabase Auth
+  const [newProvider, setNewProvider] = useState({
+    name: '',
+    service: '',
+    rate: ''
+  });
+
+  // Session Supabase
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -64,11 +95,8 @@ export default function NexusHubApp() {
   const fetchProjects = async () => {
     try {
       const { data, error } = await supabase.from('projects').select('*');
-      if (error) {
-        console.warn('Erreur chargement Supabase:', error.message);
-      } else if (data && data.length > 0) {
-        setProjects(data);
-      }
+      if (error) console.warn('Supabase local/demo mode:', error.message);
+      else if (data && data.length > 0) setProjects(data);
     } catch (err) {
       console.error('Erreur Supabase:', err);
     }
@@ -77,7 +105,6 @@ export default function NexusHubApp() {
   const handleAuth = async (e) => {
     e.preventDefault();
     setAuthError('');
-
     if (authMode === 'signup') {
       const { error } = await supabase.auth.signUp({
         email,
@@ -85,10 +112,10 @@ export default function NexusHubApp() {
         options: { data: { role: userRole } }
       });
       if (error) setAuthError(error.message);
-      else alert('Compte créé avec succès ! Vérifiez vos e-mails si la confirmation est active, ou connectez-vous.');
+      else alert('Compte créé avec succès ! Vous pouvez maintenant vous connecter.');
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) setAuthError('Identifiants incorrects ou compte non vérifié.');
+      if (error) setAuthError('Identifiants incorrects.');
     }
   };
 
@@ -96,37 +123,32 @@ export default function NexusHubApp() {
     await supabase.auth.signOut();
   };
 
-  // FILTRE DE MODÉRATION IA
-  const handleCreateProject = async (e) => {
-    e.preventDefault();
-    setModerationNotice('Analyse éthique par IA en cours...');
-
-    const textToCheck = (newProject.title + ' ' + newProject.summary).toLowerCase();
-
+  // MODÉRATION IA (Filtre anti-vulgarité & anti-contact direct)
+  const validateWithAI = (title, summary) => {
+    const textToCheck = (title + ' ' + summary).toLowerCase();
     const forbiddenTerms = [
       'merde', 'connard', 'conne', 'putain', 'salope', 'encule', 'enculé', 'chier', 'bâtard', 'batard',
       'fuck', 'shit', 'bitch', 'asshole', 'bastard',
       'spam', 'arnaque', 'casino', 'hack', 'illegal', 'illégal'
     ];
     
-    const hasProfanity = forbiddenTerms.some(term => {
-      const regex = new RegExp(`\\b${term}\\b`, 'i');
-      return regex.test(textToCheck);
-    });
+    const hasProfanity = forbiddenTerms.some(term => new RegExp(`\\b${term}\\b`, 'i').test(textToCheck));
+    const hasEmail = /[\w.-]+@[\w.-]+\.\w+/.test(textToCheck);
+    const hasPhone = /\b\d{6,}\b/.test(textToCheck);
 
-    const emailRegex = /[\w.-]+@[\w.-]+\.\w+/;
-    const hasEmail = emailRegex.test(textToCheck);
+    if (hasProfanity) return '⚠️ Projet rejeté par l\'IA : Le texte contient des mots vulgaires ou inappropriés.';
+    if (hasEmail || hasPhone) return '⚠️ Projet rejeté par l\'IA : Le partage de numéros de téléphone ou d\'e-mails est interdit pour protéger l\'intermédiation.';
+    return null;
+  };
 
-    const phoneRegex = /\b\d{6,}\b/;
-    const hasPhone = phoneRegex.test(textToCheck);
+  // SOUMISSION PROJET
+  const handleCreateProject = async (e) => {
+    e.preventDefault();
+    setModerationNotice('Analyse par IA en cours...');
 
-    if (hasProfanity) {
-      setModerationNotice('⚠️ Projet rejeté par l\'IA : Le titre ou la description contient des mots vulgaires ou inappropriés.');
-      return;
-    }
-
-    if (hasEmail || hasPhone) {
-      setModerationNotice('⚠️ Projet rejeté par l\'IA : Le partage de numéros de téléphone ou d\'e-mails est interdit pour protéger l\'intermédiation.');
+    const errorMsg = validateWithAI(newProject.title, newProject.summary);
+    if (errorMsg) {
+      setModerationNotice(errorMsg);
       return;
     }
 
@@ -153,6 +175,20 @@ export default function NexusHubApp() {
     setNewProject({ title: '', summary: '', category: 'Technologie', funding_goal: '', equity_offered: '' });
   };
 
+  // SOUMISSION PRESTATAIRE
+  const handleCreateProvider = (e) => {
+    e.preventDefault();
+    const createdProvider = {
+      id: 'p_' + Date.now(),
+      ...newProvider,
+      contact_person: session?.user?.email || 'Prestataire',
+      status: 'verified'
+    };
+    setProviders([createdProvider, ...providers]);
+    setShowProviderModal(false);
+    setNewProvider({ name: '', service: '', rate: '' });
+  };
+
   const handleSendContact = (e) => {
     e.preventDefault();
     setContactSent(true);
@@ -163,15 +199,15 @@ export default function NexusHubApp() {
     }, 2000);
   };
 
-  // SI L'UTILISATEUR N'EST PAS CONNECTÉ, AFFICHER LA PAGE DE CONNEXION / INSCRIPTION
+  // ECRAN DE CONNEXION S'IL N'Y A PAS DE SESSION
   if (!session) {
     return (
-      <div style={{ fontFamily: 'Segoe UI, Roboto, Helvetica, Arial, sans-serif', backgroundColor: '#0f172a', minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '1rem' }}>
+      <div style={{ fontFamily: 'Segoe UI, Roboto, sans-serif', backgroundColor: '#0f172a', minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '1rem' }}>
         <div style={{ backgroundColor: '#ffffff', padding: '2.5rem', borderRadius: '16px', width: '100%', maxWidth: '420px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.3)' }}>
           <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
             <div style={{ backgroundColor: '#0866ff', color: '#ffffff', width: '48px', height: '48px', borderRadius: '12px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.5rem', marginBottom: '0.75rem' }}>N</div>
             <h1 style={{ fontSize: '1.5rem', margin: 0, fontWeight: '800', color: '#0866ff' }}>NEXUS HUB</h1>
-            <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.3rem' }}>Plateforme d'écosystème en Afrique de l'Est</p>
+            <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.3rem' }}>Marketplace d'Écosystème Modérée par IA</p>
           </div>
 
           {authError && (
@@ -183,7 +219,7 @@ export default function NexusHubApp() {
           <form onSubmit={handleAuth}>
             <div style={{ marginBottom: '1rem' }}>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem' }}>Adresse e-mail :</label>
-              <input required type="email5" placeholder="votre@email.com" value={email} onChange={e => setEmail(e.target.value)} style={{ width: '100%', padding: '0.7rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }} />
+              <input required type="email" placeholder="votre@email.com" value={email} onChange={e => setEmail(e.target.value)} style={{ width: '100%', padding: '0.7rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }} />
             </div>
 
             <div style={{ marginBottom: '1rem' }}>
@@ -193,7 +229,7 @@ export default function NexusHubApp() {
 
             {authMode === 'signup' && (
               <div style={{ marginBottom: '1.25rem' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem' }}>Je suis un(e) :</label>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem' }}>Votre rôle principal :</label>
                 <select value={userRole} onChange={e => setUserRole(e.target.value)} style={{ width: '100%', padding: '0.7rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }}>
                   <option>Entrepreneur / Porteur de projet</option>
                   <option>Investisseur (Angel)</option>
@@ -209,9 +245,9 @@ export default function NexusHubApp() {
 
           <div style={{ textAlign: 'center', fontSize: '0.85rem', color: '#64748b' }}>
             {authMode === 'signin' ? (
-              <span>Pas encore de compte ? <button onClick={() => setAuthMode('signup')} style={{ background: 'none', border: 'none', color: '#0866ff', fontWeight: '700', cursor: 'pointer', padding: 0 }}>S'inscrire</button></span>
+              <span>Nouveau sur la plateforme ? <button onClick={() => setAuthMode('signup')} style={{ background: 'none', border: 'none', color: '#0866ff', fontWeight: '700', cursor: 'pointer', padding: 0 }}>Créer un compte</button></span>
             ) : (
-              <span>Déjà un compte ? <button onClick={() => setAuthMode('signin')} style={{ background: 'none', border: 'none', color: '#0866ff', fontWeight: '700', cursor: 'pointer', padding: 0 }}>Se connecter</button></span>
+              <span>Déjà membre ? <button onClick={() => setAuthMode('signin')} style={{ background: 'none', border: 'none', color: '#0866ff', fontWeight: '700', cursor: 'pointer', padding: 0 }}>Se connecter</button></span>
             )}
           </div>
         </div>
@@ -219,28 +255,31 @@ export default function NexusHubApp() {
     );
   }
 
-  // INTERFACE PRINCIPALE UNE FOIS CONNECTÉ
+  // INTERFACE PRINCIPALE
+  const myProjects = projects.filter(p => p.owner === session.user.email);
+
   return (
-    <div style={{ fontFamily: 'Segoe UI, Roboto, Helvetica, Arial, sans-serif', backgroundColor: '#f8fafc', minHeight: '100vh', color: '#0f172a' }}>
+    <div style={{ fontFamily: 'Segoe UI, Roboto, sans-serif', backgroundColor: '#f8fafc', minHeight: '100vh', color: '#0f172a' }}>
       
-      {/* HEADER RESPONSIVE AVEC DÉCONNEXION */}
-      <header style={{ backgroundColor: '#ffffff', color: '#0f172a', padding: '1rem', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', gap: '1rem', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
+      {/* HEADER */}
+      <header style={{ backgroundColor: '#ffffff', padding: '1rem', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', gap: '1rem', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <div style={{ backgroundColor: '#0866ff', color: '#ffffff', width: '38px', height: '38px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.3rem' }}>N</div>
-          <h1 style={{ fontSize: '1.3rem', margin: 0, fontWeight: '800', color: '#0866ff', letterSpacing: '-0.5px' }}>NEXUS HUB</h1>
+          <h1 style={{ fontSize: '1.3rem', margin: 0, fontWeight: '800', color: '#0866ff' }}>NEXUS HUB</h1>
         </div>
         
         <nav style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          <button onClick={() => setActiveTab('projects')} style={{ background: 'none', border: 'none', color: activeTab === 'projects' ? '#0866ff' : '#64748b', fontWeight: '700', cursor: 'pointer', fontSize: '0.9rem' }}>Projets</button>
-          <button onClick={() => setActiveTab('providers')} style={{ background: 'none', border: 'none', color: activeTab === 'providers' ? '#0866ff' : '#64748b', fontWeight: '700', cursor: 'pointer', fontSize: '0.9rem' }}>Prestataires</button>
-          <button onClick={() => setActiveTab('investors')} style={{ background: 'none', border: 'none', color: activeTab === 'investors' ? '#0866ff' : '#64748b', fontWeight: '700', cursor: 'pointer', fontSize: '0.9rem' }}>Investisseurs</button>
+          <button onClick={() => setActiveTab('projects')} style={{ background: 'none', border: 'none', color: activeTab === 'projects' ? '#0866ff' : '#64748b', fontWeight: '700', cursor: 'pointer', fontSize: '0.9rem', borderBottom: activeTab === 'projects' ? '2px solid #0866ff' : 'none' }}>Projets</button>
+          <button onClick={() => setActiveTab('providers')} style={{ background: 'none', border: 'none', color: activeTab === 'providers' ? '#0866ff' : '#64748b', fontWeight: '700', cursor: 'pointer', fontSize: '0.9rem', borderBottom: activeTab === 'providers' ? '2px solid #0866ff' : 'none' }}>Prestataires</button>
+          <button onClick={() => setActiveTab('investors')} style={{ background: 'none', border: 'none', color: activeTab === 'investors' ? '#0866ff' : '#64748b', fontWeight: '700', cursor: 'pointer', fontSize: '0.9rem', borderBottom: activeTab === 'investors' ? '2px solid #0866ff' : 'none' }}>Investisseurs</button>
+          <button onClick={() => setActiveTab('dashboard')} style={{ background: 'none', border: 'none', color: activeTab === 'dashboard' ? '#0866ff' : '#64748b', fontWeight: '700', cursor: 'pointer', fontSize: '0.9rem', borderBottom: activeTab === 'dashboard' ? '2px solid #0866ff' : 'none' }}>Mon Espace ({myProjects.length})</button>
         </nav>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <button onClick={() => setShowModal(true)} style={{ backgroundColor: '#ff9900', color: '#131921', border: 'none', padding: '0.6rem 1.1rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }}>
-            + Publier [FLASH]
+            + Publier un Projet [FLASH]
           </button>
-          <button onClick={handleLogout} title="Se déconnecter" style={{ backgroundColor: '#f1f5f9', color: '#ef4444', border: '1px solid #cbd5e1', padding: '0.6rem 0.9rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }}>
+          <button onClick={handleLogout} style={{ backgroundColor: '#f1f5f9', color: '#ef4444', border: '1px solid #cbd5e1', padding: '0.6rem 0.9rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }}>
             Déconnexion
           </button>
         </div>
@@ -249,72 +288,186 @@ export default function NexusHubApp() {
       {/* HERO */}
       <section style={{ backgroundColor: '#131921', color: '#ffffff', padding: '2.5rem 1rem', textAlign: 'center' }}>
         <h2 style={{ fontSize: '1.8rem', marginBottom: '0.5rem', fontWeight: '800' }}>Connecter les Idées au Capital et aux Compétences</h2>
-        <p style={{ color: '#94a3b8', maxWidth: '600px', margin: '0 auto 1.5rem auto', fontSize: '0.95rem', lineHeight: '1.4' }}>
-          Espace sécurisé pour : <strong>{session.user.email}</strong>
+        <p style={{ color: '#94a3b8', maxWidth: '600px', margin: '0 auto 1rem auto', fontSize: '0.95rem' }}>
+          Connecté en tant que : <strong>{session.user.email}</strong>
         </p>
       </section>
 
-      {/* MAIN */}
+      {/* CONTENU PRINCIPAL PAR ONGLET */}
       <main style={{ maxWidth: '1200px', margin: '2rem auto', padding: '0 1rem' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
-          <h3 style={{ fontSize: '1.2rem', margin: 0, fontWeight: '700' }}>Projets Filtrés & Opportunités</h3>
-          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-            {['All', 'Mobilité & Transport', 'Éducation / Média', 'Technologie'].map((cat) => (
-              <button 
-                key={cat} 
-                onClick={() => setSelectedCategory(cat)}
-                style={{ 
-                  backgroundColor: selectedCategory === cat ? '#0866ff' : '#e2e8f0', 
-                  color: selectedCategory === cat ? '#ffffff' : '#475569',
-                  border: 'none', padding: '0.4rem 0.8rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer' 
-                }}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-        </div>
+        
+        {/* ONGLET 1 : PROJETS GLOBAUX */}
+        {activeTab === 'projects' && (
+          <>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '1.2rem', margin: 0, fontWeight: '700' }}>Toutes les Opportunités & Idées</h3>
+              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                {['All', 'Mobilité & Transport', 'Éducation / Média', 'Technologie'].map((cat) => (
+                  <button 
+                    key={cat} 
+                    onClick={() => setSelectedCategory(cat)}
+                    style={{ 
+                      backgroundColor: selectedCategory === cat ? '#0866ff' : '#e2e8f0', 
+                      color: selectedCategory === cat ? '#ffffff' : '#475569',
+                      border: 'none', padding: '0.4rem 0.8rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer' 
+                    }}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-        {/* GRILLE RESPONSIVE */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
-          {projects
-            .filter(p => selectedCategory === 'All' || p.category === selectedCategory)
-            .map((p) => (
-              <div key={p.id} style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#0866ff', backgroundColor: '#eff6ff', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>{p.category}</span>
-                    <span style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: '600', backgroundColor: '#f0fdf4', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>✓ Vérifié IA</span>
-                  </div>
-                  <h4 style={{ fontSize: '1.1rem', margin: '0.5rem 0', color: '#0f172a', fontWeight: '700' }}>{p.title}</h4>
-                  <p style={{ fontSize: '0.85rem', color: '#475569', lineHeight: '1.4', marginBottom: '1rem' }}>{p.summary}</p>
-                </div>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', backgroundColor: '#f8fafc', border: '1px solid #f1f5f9', padding: '0.75rem', borderRadius: '8px', fontSize: '0.8rem', marginBottom: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
+              {projects
+                .filter(p => selectedCategory === 'All' || p.category === selectedCategory)
+                .map((p) => (
+                  <div key={p.id} style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                     <div>
-                      <div style={{ color: '#64748b' }}>Objectif :</div>
-                      <div style={{ fontWeight: '700', color: '#0f172a' }}>{p.funding_goal ? p.funding_goal.toLocaleString() : 'N/A'} {p.currency || 'USD'}</div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#0866ff', backgroundColor: '#eff6ff', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>{p.category}</span>
+                        <span style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: '600', backgroundColor: '#f0fdf4', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>✓ Vérifié IA</span>
+                      </div>
+                      <h4 style={{ fontSize: '1.1rem', margin: '0.5rem 0', color: '#0f172a', fontWeight: '700' }}>{p.title}</h4>
+                      <p style={{ fontSize: '0.85rem', color: '#475569', lineHeight: '1.4', marginBottom: '1rem' }}>{p.summary}</p>
                     </div>
                     <div>
-                      <div style={{ color: '#64748b' }}>Capital :</div>
-                      <div style={{ fontWeight: '700', color: '#16a34a' }}>{p.equity_offered || 'N/A'}%</div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', backgroundColor: '#f8fafc', border: '1px solid #f1f5f9', padding: '0.75rem', borderRadius: '8px', fontSize: '0.8rem', marginBottom: '1rem' }}>
+                        <div>
+                          <div style={{ color: '#64748b' }}>Objectif :</div>
+                          <div style={{ fontWeight: '700', color: '#0f172a' }}>{p.funding_goal ? p.funding_goal.toLocaleString() : 'N/A'} {p.currency || 'USD'}</div>
+                        </div>
+                        <div>
+                          <div style={{ color: '#64748b' }}>Capital :</div>
+                          <div style={{ fontWeight: '700', color: '#16a34a' }}>{p.equity_offered || 'N/A'}%</div>
+                        </div>
+                      </div>
+                      <button onClick={() => setContactModal(p)} style={{ width: '100%', backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.65rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }}>
+                        Demander un contact / En savoir plus
+                      </button>
                     </div>
                   </div>
-                  <button onClick={() => setContactModal(p)} style={{ width: '100%', backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.65rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }}>
-                    Demander un contact / En savoir plus
+                ))}
+            </div>
+          </>
+        )}
+
+        {/* ONGLET 2 : PRESTATAIRES & EXPERTS */}
+        {activeTab === 'providers' && (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <div>
+                <h3 style={{ fontSize: '1.2rem', margin: 0, fontWeight: '700' }}>Prestataires & Experts Qualifiés</h3>
+                <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>Trouvez les meilleures compétences pour accompagner la croissance de votre projet.</p>
+              </div>
+              <button onClick={() => setShowProviderModal(true)} style={{ backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.6rem 1rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }}>
+                + Proposer mes services
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
+              {providers.map((pr) => (
+                <div key={pr.id} style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#16a34a', backgroundColor: '#f0fdf4', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>✓ Prestataire Vérifié</span>
+                    <span style={{ fontSize: '0.8rem', fontWeight: '700', color: '#0866ff' }}>{pr.rate}</span>
+                  </div>
+                  <h4 style={{ fontSize: '1.1rem', margin: '0.5rem 0', fontWeight: '700' }}>{pr.name}</h4>
+                  <p style={{ fontSize: '0.85rem', color: '#475569', marginBottom: '1rem', lineHeight: '1.4' }}>{pr.service}</p>
+                  <button onClick={() => setContactModal({ title: `Service de ${pr.name}` })} style={{ width: '100%', backgroundColor: '#f1f5f9', color: '#0f172a', border: '1px solid #cbd5e1', padding: '0.6rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }}>
+                    Solliciter ce prestataire
                   </button>
                 </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* ONGLET 3 : INVESTISSEURS & FILTRES AVANCÉS */}
+        {activeTab === 'investors' && (
+          <>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '1.2rem', margin: 0, fontWeight: '700' }}>Espace Investisseurs (Angels)</h3>
+              <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.2rem' }}>Filtrez les projets selon votre capacité de ticket d'investissement.</p>
+              
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: '700', alignSelf: 'center' }}>Ticket d'investissement :</span>
+                {['All', '< 5000 USD', '5000 - 20000 USD', '> 20000 USD'].map(f => (
+                  <button key={f} onClick={() => setInvestorFilter(f)} style={{ backgroundColor: investorFilter === f ? '#0866ff' : '#e2e8f0', color: investorFilter === f ? '#ffffff' : '#475569', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer' }}>
+                    {f}
+                  </button>
+                ))}
               </div>
-            ))}
-        </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
+              {projects
+                .filter(p => {
+                  if (investorFilter === '< 5000 USD') return p.funding_goal < 5000;
+                  if (investorFilter === '5000 - 20000 USD') return p.funding_goal >= 5000 && p.funding_goal <= 20000;
+                  if (investorFilter === '> 20000 USD') return p.funding_goal > 20000;
+                  return true;
+                })
+                .map((p) => (
+                  <div key={p.id} style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#0866ff', backgroundColor: '#eff6ff', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>{p.category}</span>
+                      <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#ff9900' }}>Recherche : {p.funding_goal} USD</span>
+                    </div>
+                    <h4 style={{ fontSize: '1.1rem', margin: '0.5rem 0', fontWeight: '700' }}>{p.title}</h4>
+                    <p style={{ fontSize: '0.85rem', color: '#475569', marginBottom: '1rem', lineHeight: '1.4' }}>{p.summary}</p>
+                    <button onClick={() => setContactModal(p)} style={{ width: '100%', backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.65rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }}>
+                      Proposer un ticket d'investissement
+                    </button>
+                  </div>
+                ))}
+            </div>
+          </>
+        )}
+
+        {/* OPTION 1 : TABLEAU DE BORD PERSONNEL (MON ESPACE) */}
+        {activeTab === 'dashboard' && (
+          <>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '1.2rem', margin: 0, fontWeight: '700' }}>Mon Espace Personnel</h3>
+              <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.2rem' }}>Gérez les projets que vous avez créés et suivez l'avancement de vos mises en relation.</p>
+            </div>
+
+            {myProjects.length === 0 ? (
+              <div style={{ backgroundColor: '#ffffff', padding: '2rem', borderRadius: '12px', textAlign: 'center', border: '1px solid #e2e8f0' }}>
+                <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '1rem' }}>Vous n'avez pas encore publié de projet avec ce compte.</p>
+                <button onClick={() => setShowModal(true)} style={{ backgroundColor: '#ff9900', color: '#131921', border: 'none', padding: '0.65rem 1.2rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }}>
+                  + Publier mon premier projet
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
+                {myProjects.map((p) => (
+                  <div key={p.id} style={{ backgroundColor: '#ffffff', border: '2px solid #0866ff', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#0866ff', backgroundColor: '#eff6ff', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>Mon Projet</span>
+                      <span style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: '600' }}>● En Ligne</span>
+                    </div>
+                    <h4 style={{ fontSize: '1.1rem', margin: '0.5rem 0', fontWeight: '700' }}>{p.title}</h4>
+                    <p style={{ fontSize: '0.85rem', color: '#475569', marginBottom: '1rem' }}>{p.summary}</p>
+                    <div style={{ backgroundColor: '#f8fafc', padding: '0.6rem', borderRadius: '6px', fontSize: '0.8rem', color: '#475569' }}>
+                      Cible : <strong>{p.funding_goal} USD</strong> | Part : <strong>{p.equity_offered}%</strong>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
       </main>
 
-      {/* MODALE DE SOUMISSION */}
+      {/* MODALE SOUMISSION PROJET */}
       {showModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15,23,42,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '1rem', backdropFilter: 'blur(4px)' }}>
-          <div style={{ backgroundColor: '#ffffff', padding: '1.5rem', borderRadius: '12px', width: '100%', maxWidth: '480px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+          <div style={{ backgroundColor: '#ffffff', padding: '1.5rem', borderRadius: '12px', width: '100%', maxWidth: '480px', maxHeight: '90vh', overflowY: 'auto' }}>
             <h3 style={{ marginTop: 0, marginBottom: '0.4rem', color: '#0f172a', fontWeight: '800', fontSize: '1.2rem' }}>Publier une Idée / Projet [FLASH]</h3>
-            <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '1rem' }}>L'IA bloque automatiquement la vulgarité et les contacts directs.</p>
+            <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '1rem' }}>Modération IA active : Pas de contacts directs ni de vulgarités.</p>
             
             {moderationNotice && (
               <div style={{ backgroundColor: moderationNotice.includes('⚠️') ? '#fef2f2' : '#eff6ff', color: moderationNotice.includes('⚠️') ? '#991b1b' : '#1e40af', padding: '0.6rem', borderRadius: '6px', fontSize: '0.8rem', marginBottom: '1rem', fontWeight: '600' }}>
@@ -325,11 +478,11 @@ export default function NexusHubApp() {
             <form onSubmit={handleCreateProject}>
               <div style={{ marginBottom: '0.85rem' }}>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.3rem' }}>Titre du projet :</label>
-                <input required type="text" placeholder="Ex: Solution logistique" value={newProject.title} onChange={e => setNewProject({...newProject, title: e.target.value})} style={{ width: '100%', padding: '0.55rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }} />
+                <input required type="text" placeholder="Ex: Plateforme logistique" value={newProject.title} onChange={e => setNewProject({...newProject, title: e.target.value})} style={{ width: '100%', padding: '0.55rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }} />
               </div>
               <div style={{ marginBottom: '0.85rem' }}>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.3rem' }}>Résumé du concept :</label>
-                <textarea required rows="3" placeholder="Décrivez la valeur..." value={newProject.summary} onChange={e => setNewProject({...newProject, summary: e.target.value})} style={{ width: '100%', padding: '0.55rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}></textarea>
+                <textarea required rows="3" placeholder="Présentez la valeur..." value={newProject.summary} onChange={e => setNewProject({...newProject, summary: e.target.value})} style={{ width: '100%', padding: '0.55rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}></textarea>
               </div>
               <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem' }}>
                 <div style={{ flex: 1 }}>
@@ -350,13 +503,40 @@ export default function NexusHubApp() {
         </div>
       )}
 
+      {/* MODALE SOUMISSION PRESTATAIRE */}
+      {showProviderModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15,23,42,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '1rem', backdropFilter: 'blur(4px)' }}>
+          <div style={{ backgroundColor: '#ffffff', padding: '1.5rem', borderRadius: '12px', width: '100%', maxWidth: '440px' }}>
+            <h3 style={{ marginTop: 0, marginBottom: '0.4rem', color: '#0f172a', fontWeight: '800', fontSize: '1.1rem' }}>Proposer mes services d'expert</h3>
+            <form onSubmit={handleCreateProvider}>
+              <div style={{ marginBottom: '0.85rem' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.3rem' }}>Nom du cabinet / Expert :</label>
+                <input required type="text" placeholder="Ex: Studio Tech Bujumbura" value={newProvider.name} onChange={e => setNewProvider({...newProvider, name: e.target.value})} style={{ width: '100%', padding: '0.55rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }} />
+              </div>
+              <div style={{ marginBottom: '0.85rem' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.3rem' }}>Compétences & Services proposés :</label>
+                <textarea required rows="3" placeholder="Ex: Audit légal, développement d'application..." value={newProvider.service} onChange={e => setNewProvider({...newProvider, service: e.target.value})} style={{ width: '100%', padding: '0.55rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}></textarea>
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.3rem' }}>Tarif indicatif :</label>
+                <input required type="text" placeholder="Ex: 30$/heure ou Sur devis" value={newProvider.rate} onChange={e => setNewProvider({...newProvider, rate: e.target.value})} style={{ width: '100%', padding: '0.55rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }} />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.6rem' }}>
+                <button type="button" onClick={() => setShowProviderModal(false)} style={{ backgroundColor: '#f1f5f9', color: '#475569', border: 'none', padding: '0.55rem 1rem', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '0.85rem' }}>Annuler</button>
+                <button type="submit" style={{ backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.55rem 1rem', borderRadius: '6px', cursor: 'pointer', fontWeight: '700', fontSize: '0.85rem' }}>Enregistrer ma fiche</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* MODALE DE CONTACT */}
       {contactModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15,23,42,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '1rem', backdropFilter: 'blur(4px)' }}>
-          <div style={{ backgroundColor: '#ffffff', padding: '1.5rem', borderRadius: '12px', width: '100%', maxWidth: '420px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
-            <h3 style={{ marginTop: 0, marginBottom: '0.4rem', color: '#0f172a', fontWeight: '800', fontSize: '1.1rem' }}>Mise en relation sécurisée</h3>
+          <div style={{ backgroundColor: '#ffffff', padding: '1.5rem', borderRadius: '12px', width: '100%', maxWidth: '420px' }}>
+            <h3 style={{ marginTop: 0, marginBottom: '0.4rem', color: '#0f172a', fontWeight: '800', fontSize: '1.1rem' }}>Demande de mise en relation</h3>
             <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '1rem' }}>
-              Pour le projet : <strong>{contactModal.title}</strong>.
+              Pour : <strong>{contactModal.title}</strong>. L'équipe Nexus Hub traite votre demande en toute confidentialité.
             </p>
 
             {contactSent ? (
@@ -370,15 +550,16 @@ export default function NexusHubApp() {
                   <select style={{ width: '100%', padding: '0.55rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}>
                     <option>Investisseur</option>
                     <option>Prestataire</option>
+                    <option>Partenaire</option>
                   </select>
                 </div>
                 <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.3rem' }}>Message :</label>
-                  <textarea required rows="3" placeholder="Votre message..." value={contactMessage} onChange={e => setContactMessage(e.target.value)} style={{ width: '100%', padding: '0.55rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}></textarea>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.3rem' }}>Votre message :</label>
+                  <textarea required rows="3" placeholder="Présentez brièvement votre intérêt..." value={contactMessage} onChange={e => setContactMessage(e.target.value)} style={{ width: '100%', padding: '0.55rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}></textarea>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.6rem' }}>
                   <button type="button" onClick={() => setContactModal(null)} style={{ backgroundColor: '#f1f5f9', color: '#475569', border: 'none', padding: '0.55rem 1rem', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '0.85rem' }}>Fermer</button>
-                  <button type="submit" style={{ backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.55rem 1rem', borderRadius: '6px', cursor: 'pointer', fontWeight: '700', fontSize: '0.85rem' }}>Envoyer</button>
+                  <button type="submit" style={{ backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.55rem 1rem', borderRadius: '6px', cursor: 'pointer', fontWeight: '700', fontSize: '0.85rem' }}>Envoyer la demande</button>
                 </div>
               </form>
             )}
