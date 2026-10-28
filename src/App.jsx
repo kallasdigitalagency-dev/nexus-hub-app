@@ -6,6 +6,13 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export default function NexusHubApp() {
+  const [session, setSession] = useState(null);
+  const [authMode, setAuthMode] = useState('signin'); // 'signin' ou 'signup'
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [userRole, setUserRole] = useState('Entrepreneur');
+  const [authError, setAuthError] = useState('');
+
   const [activeTab, setActiveTab] = useState('projects');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [projects, setProjects] = useState([
@@ -37,6 +44,19 @@ export default function NexusHubApp() {
     equity_offered: ''
   });
 
+  // Gestion de la session Supabase Auth
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   useEffect(() => {
     fetchProjects();
   }, []);
@@ -54,7 +74,29 @@ export default function NexusHubApp() {
     }
   };
 
-  // FILTRE DE MODÉRATION IA (Anti-contournement & Anti-vulgarité)
+  const handleAuth = async (e) => {
+    e.preventDefault();
+    setAuthError('');
+
+    if (authMode === 'signup') {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { role: userRole } }
+      });
+      if (error) setAuthError(error.message);
+      else alert('Compte créé avec succès ! Vérifiez vos e-mails si la confirmation est active, ou connectez-vous.');
+    } else {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) setAuthError('Identifiants incorrects ou compte non vérifié.');
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
+
+  // FILTRE DE MODÉRATION IA
   const handleCreateProject = async (e) => {
     e.preventDefault();
     setModerationNotice('Analyse éthique par IA en cours...');
@@ -95,7 +137,7 @@ export default function NexusHubApp() {
       equity_offered: Number(newProject.equity_offered),
       stage: 'Ébauche / Idée',
       currency: 'USD',
-      owner: 'Entrepreneur',
+      owner: session?.user?.email || 'Entrepreneur',
       status: 'verified'
     };
 
@@ -121,32 +163,94 @@ export default function NexusHubApp() {
     }, 2000);
   };
 
+  // SI L'UTILISATEUR N'EST PAS CONNECTÉ, AFFICHER LA PAGE DE CONNEXION / INSCRIPTION
+  if (!session) {
+    return (
+      <div style={{ fontFamily: 'Segoe UI, Roboto, Helvetica, Arial, sans-serif', backgroundColor: '#0f172a', minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '1rem' }}>
+        <div style={{ backgroundColor: '#ffffff', padding: '2.5rem', borderRadius: '16px', width: '100%', maxWidth: '420px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.3)' }}>
+          <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+            <div style={{ backgroundColor: '#0866ff', color: '#ffffff', width: '48px', height: '48px', borderRadius: '12px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.5rem', marginBottom: '0.75rem' }}>N</div>
+            <h1 style={{ fontSize: '1.5rem', margin: 0, fontWeight: '800', color: '#0866ff' }}>NEXUS HUB</h1>
+            <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.3rem' }}>Plateforme d'écosystème en Afrique de l'Est</p>
+          </div>
+
+          {authError && (
+            <div style={{ backgroundColor: '#fef2f2', color: '#991b1b', padding: '0.75rem', borderRadius: '8px', fontSize: '0.85rem', marginBottom: '1rem', fontWeight: '600', textAlign: 'center' }}>
+              {authError}
+            </div>
+          )}
+
+          <form onSubmit={handleAuth}>
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem' }}>Adresse e-mail :</label>
+              <input required type="email5" placeholder="votre@email.com" value={email} onChange={e => setEmail(e.target.value)} style={{ width: '100%', padding: '0.7rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }} />
+            </div>
+
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem' }}>Mot de passe :</label>
+              <input required type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} style={{ width: '100%', padding: '0.7rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }} />
+            </div>
+
+            {authMode === 'signup' && (
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem' }}>Je suis un(e) :</label>
+                <select value={userRole} onChange={e => setUserRole(e.target.value)} style={{ width: '100%', padding: '0.7rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }}>
+                  <option>Entrepreneur / Porteur de projet</option>
+                  <option>Investisseur (Angel)</option>
+                  <option>Prestataire de services</option>
+                </select>
+              </div>
+            )}
+
+            <button type="submit" style={{ width: '100%', backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.75rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.95rem', marginBottom: '1rem' }}>
+              {authMode === 'signin' ? 'Se connecter' : 'Créer mon compte'}
+            </button>
+          </form>
+
+          <div style={{ textAlign: 'center', fontSize: '0.85rem', color: '#64748b' }}>
+            {authMode === 'signin' ? (
+              <span>Pas encore de compte ? <button onClick={() => setAuthMode('signup')} style={{ background: 'none', border: 'none', color: '#0866ff', fontWeight: '700', cursor: 'pointer', padding: 0 }}>S'inscrire</button></span>
+            ) : (
+              <span>Déjà un compte ? <button onClick={() => setAuthMode('signin')} style={{ background: 'none', border: 'none', color: '#0866ff', fontWeight: '700', cursor: 'pointer', padding: 0 }}>Se connecter</button></span>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // INTERFACE PRINCIPALE UNE FOIS CONNECTÉ
   return (
     <div style={{ fontFamily: 'Segoe UI, Roboto, Helvetica, Arial, sans-serif', backgroundColor: '#f8fafc', minHeight: '100vh', color: '#0f172a' }}>
       
-      {/* HEADER RESPONSIVE */}
+      {/* HEADER RESPONSIVE AVEC DÉCONNEXION */}
       <header style={{ backgroundColor: '#ffffff', color: '#0f172a', padding: '1rem', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', gap: '1rem', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <div style={{ backgroundColor: '#0866ff', color: '#ffffff', width: '38px', height: '38px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.3rem' }}>N</div>
           <h1 style={{ fontSize: '1.3rem', margin: 0, fontWeight: '800', color: '#0866ff', letterSpacing: '-0.5px' }}>NEXUS HUB</h1>
         </div>
         
-        <nav style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+        <nav style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
           <button onClick={() => setActiveTab('projects')} style={{ background: 'none', border: 'none', color: activeTab === 'projects' ? '#0866ff' : '#64748b', fontWeight: '700', cursor: 'pointer', fontSize: '0.9rem' }}>Projets</button>
           <button onClick={() => setActiveTab('providers')} style={{ background: 'none', border: 'none', color: activeTab === 'providers' ? '#0866ff' : '#64748b', fontWeight: '700', cursor: 'pointer', fontSize: '0.9rem' }}>Prestataires</button>
           <button onClick={() => setActiveTab('investors')} style={{ background: 'none', border: 'none', color: activeTab === 'investors' ? '#0866ff' : '#64748b', fontWeight: '700', cursor: 'pointer', fontSize: '0.9rem' }}>Investisseurs</button>
         </nav>
 
-        <button onClick={() => setShowModal(true)} style={{ backgroundColor: '#ff9900', color: '#131921', border: 'none', padding: '0.6rem 1.1rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }}>
-          + Publier [FLASH]
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <button onClick={() => setShowModal(true)} style={{ backgroundColor: '#ff9900', color: '#131921', border: 'none', padding: '0.6rem 1.1rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }}>
+            + Publier [FLASH]
+          </button>
+          <button onClick={handleLogout} title="Se déconnecter" style={{ backgroundColor: '#f1f5f9', color: '#ef4444', border: '1px solid #cbd5e1', padding: '0.6rem 0.9rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }}>
+            Déconnexion
+          </button>
+        </div>
       </header>
 
       {/* HERO */}
       <section style={{ backgroundColor: '#131921', color: '#ffffff', padding: '2.5rem 1rem', textAlign: 'center' }}>
         <h2 style={{ fontSize: '1.8rem', marginBottom: '0.5rem', fontWeight: '800' }}>Connecter les Idées au Capital et aux Compétences</h2>
         <p style={{ color: '#94a3b8', maxWidth: '600px', margin: '0 auto 1.5rem auto', fontSize: '0.95rem', lineHeight: '1.4' }}>
-          La marketplace d'écosystème modérée par IA garantissant une mise en relation qualifiée et sécurisée.
+          Espace sécurisé pour : <strong>{session.user.email}</strong>
         </p>
       </section>
 
