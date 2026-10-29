@@ -17,7 +17,6 @@ export default function NexusHubApp() {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [investorFilter, setInvestorFilter] = useState('All');
 
-  // Données avec valeurs par défaut de secours
   const [projects, setProjects] = useState([
     {
       id: '1',
@@ -82,7 +81,7 @@ export default function NexusHubApp() {
         setProjects(data);
       }
     } catch (err) {
-      console.warn('Mode secours actif pour les projets');
+      console.warn('Mode secours actif');
     }
   };
 
@@ -96,7 +95,7 @@ export default function NexusHubApp() {
         options: { data: { role: userRole } }
       });
       if (error) setAuthError(error.message);
-      else alert('Compte créé avec succès ! Vous pouvez maintenant vous connecter.');
+      else alert('Compte créé avec succès ! Connectez-vous.');
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) setAuthError('Identifiants incorrects.');
@@ -109,18 +108,13 @@ export default function NexusHubApp() {
 
   const validateWithAI = (title, summary) => {
     const textToCheck = (title + ' ' + summary).toLowerCase();
-    const forbiddenTerms = [
-      'merde', 'connard', 'conne', 'putain', 'salope', 'encule', 'enculé', 'chier', 'bâtard', 'batard',
-      'fuck', 'shit', 'bitch', 'asshole', 'bastard',
-      'spam', 'arnaque', 'casino', 'hack', 'illegal', 'illégal'
-    ];
-    
+    const forbiddenTerms = ['merde', 'connard', 'putain', 'salope', 'encule', 'chier', 'fuck', 'shit', 'bitch', 'spam', 'arnaque', 'casino', 'hack', 'illegal'];
     const hasProfanity = forbiddenTerms.some(term => new RegExp(`\\b${term}\\b`, 'i').test(textToCheck));
     const hasEmail = /[\w.-]+@[\w.-]+\.\w+/.test(textToCheck);
     const hasPhone = /\b\d{6,}\b/.test(textToCheck);
 
-    if (hasProfanity) return '⚠️ Projet rejeté par l\'IA : Le texte contient des mots vulgaires ou inappropriés.';
-    if (hasEmail || hasPhone) return '⚠️ Projet rejeté par l\'IA : Le partage de numéros de téléphone ou d\'e-mails est interdit pour protéger l\'intermédiation.';
+    if (hasProfanity) return '⚠️ Projet rejeté par l\'IA : Langage inapproprié détecté.';
+    if (hasEmail || hasPhone) return '⚠️ Projet rejeté par l\'IA : Le partage de contacts directs est interdit.';
     return null;
   };
 
@@ -148,7 +142,7 @@ export default function NexusHubApp() {
     try {
       await supabase.from('projects').insert([created]);
     } catch (err) {
-      console.warn('Insertion Supabase ignorée, conservation locale');
+      console.warn('Sauvegarde locale');
     }
 
     setProjects([created, ...projects]);
@@ -165,7 +159,6 @@ export default function NexusHubApp() {
       contact_person: session?.user?.email || 'Prestataire',
       status: 'verified'
     };
-
     setProviders([createdProvider, ...providers]);
     setShowProviderModal(false);
     setNewProvider({ name: '', service: '', rate: '' });
@@ -241,6 +234,11 @@ export default function NexusHubApp() {
   return (
     <div style={{ fontFamily: 'Segoe UI, Roboto, sans-serif', backgroundColor: '#f8fafc', minHeight: '100vh', color: '#0f172a' }}>
       
+      {/* BANDEAU PUBLICITAIRE / ANNONCE DYNAMIQUE [FLASH] */}
+      <div style={{ backgroundColor: '#ff9900', color: '#131921', padding: '0.5rem 1rem', textAlign: 'center', fontSize: '0.85rem', fontWeight: '800', letterSpacing: '0.3px', display: 'flex', justifyContent: 'center', gap: '1rem', alignItems: 'center' }}>
+        <span>🔥 ESPACE PARTENAIRE & SPONSORING : Boostez votre visibilité auprès des investisseurs d'Afrique de l'Est !</span>
+      </div>
+
       {/* HEADER */}
       <header style={{ backgroundColor: '#ffffff', padding: '1rem', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', gap: '1rem', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -302,7 +300,7 @@ export default function NexusHubApp() {
               {projects
                 .filter(p => selectedCategory === 'All' || p.category === selectedCategory)
                 .map((p) => (
-                  <div key={p.id} style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div key={p.id} style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', transition: 'transform 0.2s', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                         <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#0866ff', backgroundColor: '#eff6ff', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>{p.category}</span>
@@ -347,7 +345,7 @@ export default function NexusHubApp() {
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
               {providers.map((pr) => (
-                <div key={pr.id} style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                <div key={pr.id} style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                     <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#16a34a', backgroundColor: '#f0fdf4', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>✓ Vérifié</span>
                     <span style={{ fontSize: '0.8rem', fontWeight: '700', color: '#0866ff' }}>{pr.rate}</span>
@@ -389,7 +387,7 @@ export default function NexusHubApp() {
                   return true;
                 })
                 .map((p) => (
-                  <div key={p.id} style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                  <div key={p.id} style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                       <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#0866ff', backgroundColor: '#eff6ff', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>{p.category}</span>
                       <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#ff9900' }}>Recherche : {p.funding_goal} USD</span>
@@ -423,7 +421,7 @@ export default function NexusHubApp() {
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
                 {myProjects.map((p) => (
-                  <div key={p.id} style={{ backgroundColor: '#ffffff', border: '2px solid #0866ff', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                  <div key={p.id} style={{ backgroundColor: '#ffffff', border: '2px solid #0866ff', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                       <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#0866ff', backgroundColor: '#eff6ff', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>Mon Projet</span>
                       <span style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: '600' }}>● En Ligne</span>
@@ -512,7 +510,7 @@ export default function NexusHubApp() {
 
       {/* MODALE DE CONTACT */}
       {contactModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15,23,42,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '1rem', backdropFilter: 'blur(4px)' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15,23,42,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: '1000', padding: '1rem', backdropFilter: 'blur(4px)' }}>
           <div style={{ backgroundColor: '#ffffff', padding: '1.5rem', borderRadius: '12px', width: '100%', maxWidth: '420px' }}>
             <h3 style={{ marginTop: 0, marginBottom: '0.4rem', color: '#0f172a', fontWeight: '800', fontSize: '1.1rem' }}>Demande de mise en relation</h3>
             <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '1rem' }}>
@@ -535,7 +533,7 @@ export default function NexusHubApp() {
                 </div>
                 <div style={{ marginBottom: '1rem' }}>
                   <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.3rem' }}>Votre message :</label>
-                  <textarea required rows="3" placeholder="Présentez brièvement votre intérêt..." value={contactMessage} onChange={e => setNewProvider({...newProvider})} style={{ width: '100%', padding: '0.55rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}></textarea>
+                  <textarea required rows="3" placeholder="Présentez brièvement votre intérêt..." value={contactMessage} onChange={e => setContactMessage(e.target.value)} style={{ width: '100%', padding: '0.55rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}></textarea>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.6rem' }}>
                   <button type="button" onClick={() => setContactModal(null)} style={{ backgroundColor: '#f1f5f9', color: '#475569', border: 'none', padding: '0.55rem 1rem', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '0.85rem' }}>Fermer</button>
