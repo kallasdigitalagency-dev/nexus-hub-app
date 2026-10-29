@@ -5,6 +5,9 @@ const SUPABASE_URL = 'https://nuvzwidobettxbxmernr.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im51dnp3aWRvYmV0dHhieG1lcm5yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI3NTgyMDMsImV4cCI6MjEwODMzNDIwM30.-epQ2Dhb4g3j--l7GMvy21yT97EIS-BQRB7ravaRnvY';
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// Adresse e-mail autorisée à accéder au panneau d'administration
+const ADMIN_EMAIL = 'kazi@gmail.com'; // Vous pouvez ajuster cette adresse selon vos besoins
+
 export default function NexusHubApp() {
   const [session, setSession] = useState(null);
   const [authMode, setAuthMode] = useState('signin');
@@ -174,6 +177,24 @@ export default function NexusHubApp() {
     }, 2000);
   };
 
+  // ACTIONS ADMIN
+  const handleDeleteProject = (id) => {
+    if (window.confirm('Voulez-vous vraiment supprimer ce projet ?')) {
+      setProjects(projects.filter(p => p.id !== id));
+    }
+  };
+
+  const handleToggleStatus = (id) => {
+    setProjects(projects.map(p => {
+      if (p.id === id) {
+        return { ...p, status: p.status === 'verified' ? 'suspended' : 'verified' };
+      }
+      return p;
+    }));
+  };
+
+  const isAdmin = session?.user?.email === ADMIN_EMAIL;
+
   if (!session) {
     return (
       <div style={{ fontFamily: 'Segoe UI, Roboto, sans-serif', backgroundColor: '#0f172a', minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '1rem' }}>
@@ -234,9 +255,34 @@ export default function NexusHubApp() {
   return (
     <div style={{ fontFamily: 'Segoe UI, Roboto, sans-serif', backgroundColor: '#f8fafc', minHeight: '100vh', color: '#0f172a' }}>
       
-      {/* BANDEAU PUBLICITAIRE / ANNONCE DYNAMIQUE [FLASH] */}
-      <div style={{ backgroundColor: '#ff9900', color: '#131921', padding: '0.5rem 1rem', textAlign: 'center', fontSize: '0.85rem', fontWeight: '800', letterSpacing: '0.3px', display: 'flex', justifyContent: 'center', gap: '1rem', alignItems: 'center' }}>
-        <span>🔥 ESPACE PARTENAIRE & SPONSORING : Boostez votre visibilité auprès des investisseurs d'Afrique de l'Est !</span>
+      {/* FEUILLE DE STYLE MOTION CSS */}
+      <style>{`
+        @keyframes marquee {
+          0% { transform: translateX(100%); }
+          100% { transform: translateX(-100%); }
+        }
+        @keyframes pulseGlow {
+          0% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.4); }
+          70% { box-shadow: 0 0 0 8px rgba(22, 163, 74, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+        }
+        .animated-card {
+          transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+        .animated-card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 12px 20px -5px rgba(0,0,0,0.1) !important;
+        }
+        .pulse-badge {
+          animation: pulseGlow 2s infinite;
+        }
+      `}</style>
+
+      {/* BANDEAU PUBLICITAIRE DYNAMIQUE DÉFILANT */}
+      <div style={{ backgroundColor: '#1e293b', color: '#ff9900', overflow: 'hidden', whitespace: 'nowrap', padding: '0.6rem 0', fontSize: '0.85rem', fontWeight: '700', borderBottom: '1px solid #334155' }}>
+        <div style={{ display: 'inline-block', animation: 'marquee 25s linear infinite' }}>
+          🔥 ESPACE SPONSORE : Rejoignez l'écosystème Nexus Hub — Plus de 50 investisseurs qualifiés connectés ce mois-ci en Afrique de l'Est ! 🚀
+        </div>
       </div>
 
       {/* HEADER */}
@@ -251,6 +297,13 @@ export default function NexusHubApp() {
           <button onClick={() => setActiveTab('providers')} style={{ background: 'none', border: 'none', color: activeTab === 'providers' ? '#0866ff' : '#64748b', fontWeight: '700', cursor: 'pointer', fontSize: '0.9rem', borderBottom: activeTab === 'providers' ? '2px solid #0866ff' : 'none' }}>Prestataires</button>
           <button onClick={() => setActiveTab('investors')} style={{ background: 'none', border: 'none', color: activeTab === 'investors' ? '#0866ff' : '#64748b', fontWeight: '700', cursor: 'pointer', fontSize: '0.9rem', borderBottom: activeTab === 'investors' ? '2px solid #0866ff' : 'none' }}>Investisseurs</button>
           <button onClick={() => setActiveTab('dashboard')} style={{ background: 'none', border: 'none', color: activeTab === 'dashboard' ? '#0866ff' : '#64748b', fontWeight: '700', cursor: 'pointer', fontSize: '0.9rem', borderBottom: activeTab === 'dashboard' ? '2px solid #0866ff' : 'none' }}>Mon Espace ({myProjects.length})</button>
+          
+          {/* BOUTON ADMIN SI CONNECTÉ EN TANT QU'ADMINISTRATEUR */}
+          {isAdmin && (
+            <button onClick={() => setActiveTab('admin')} style={{ backgroundColor: '#ef4444', color: '#ffffff', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '6px', fontWeight: '800', cursor: 'pointer', fontSize: '0.8rem' }}>
+              ⚙️ ADMIN
+            </button>
+          )}
         </nav>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -267,7 +320,7 @@ export default function NexusHubApp() {
       <section style={{ backgroundColor: '#131921', color: '#ffffff', padding: '2.5rem 1rem', textAlign: 'center' }}>
         <h2 style={{ fontSize: '1.8rem', marginBottom: '0.5rem', fontWeight: '800' }}>Connecter les Idées au Capital et aux Compétences</h2>
         <p style={{ color: '#94a3b8', maxWidth: '600px', margin: '0 auto 1rem auto', fontSize: '0.95rem' }}>
-          Connecté en tant que : <strong>{session.user.email}</strong>
+          Connecté en tant que : <strong>{session.user.email}</strong> {isAdmin && <span style={{ color: '#ff9900', fontWeight: 'bold' }}>(Administrateur)</span>}
         </p>
       </section>
 
@@ -298,13 +351,14 @@ export default function NexusHubApp() {
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
               {projects
+                .filter(p => p.status === 'verified')
                 .filter(p => selectedCategory === 'All' || p.category === selectedCategory)
                 .map((p) => (
-                  <div key={p.id} style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', transition: 'transform 0.2s', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div key={p.id} className="animated-card" style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                         <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#0866ff', backgroundColor: '#eff6ff', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>{p.category}</span>
-                        <span style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: '600', backgroundColor: '#f0fdf4', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>✓ Vérifié IA</span>
+                        <span className="pulse-badge" style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: '700', backgroundColor: '#f0fdf4', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>✓ Vérifié IA</span>
                       </div>
                       <h4 style={{ fontSize: '1.1rem', margin: '0.5rem 0', color: '#0f172a', fontWeight: '700' }}>{p.title}</h4>
                       <p style={{ fontSize: '0.85rem', color: '#475569', lineHeight: '1.4', marginBottom: '1rem' }}>{p.summary}</p>
@@ -345,7 +399,7 @@ export default function NexusHubApp() {
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
               {providers.map((pr) => (
-                <div key={pr.id} style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+                <div key={pr.id} className="animated-card" style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                     <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#16a34a', backgroundColor: '#f0fdf4', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>✓ Vérifié</span>
                     <span style={{ fontSize: '0.8rem', fontWeight: '700', color: '#0866ff' }}>{pr.rate}</span>
@@ -380,171 +434,11 @@ export default function NexusHubApp() {
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
               {projects
+                .filter(p => p.status === 'verified')
                 .filter(p => {
                   if (investorFilter === '< 5000 USD') return p.funding_goal < 5000;
                   if (investorFilter === '5000 - 20000 USD') return p.funding_goal >= 5000 && p.funding_goal <= 20000;
                   if (investorFilter === '> 20000 USD') return p.funding_goal > 20000;
                   return true;
                 })
-                .map((p) => (
-                  <div key={p.id} style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                      <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#0866ff', backgroundColor: '#eff6ff', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>{p.category}</span>
-                      <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#ff9900' }}>Recherche : {p.funding_goal} USD</span>
-                    </div>
-                    <h4 style={{ fontSize: '1.1rem', margin: '0.5rem 0', fontWeight: '700' }}>{p.title}</h4>
-                    <p style={{ fontSize: '0.85rem', color: '#475569', marginBottom: '1rem', lineHeight: '1.4' }}>{p.summary}</p>
-                    <button onClick={() => setContactModal(p)} style={{ width: '100%', backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.65rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }}>
-                      Proposer un ticket d'investissement
-                    </button>
-                  </div>
-                ))}
-            </div>
-          </>
-        )}
-
-        {/* MON ESPACE */}
-        {activeTab === 'dashboard' && (
-          <>
-            <div style={{ marginBottom: '1.5rem' }}>
-              <h3 style={{ fontSize: '1.2rem', margin: 0, fontWeight: '700' }}>Mon Espace Personnel</h3>
-              <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.2rem' }}>Gérez les projets que vous avez créés et suivez vos publications.</p>
-            </div>
-
-            {myProjects.length === 0 ? (
-              <div style={{ backgroundColor: '#ffffff', padding: '2rem', borderRadius: '12px', textAlign: 'center', border: '1px solid #e2e8f0' }}>
-                <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '1rem' }}>Vous n'avez pas encore publié de projet avec ce compte.</p>
-                <button onClick={() => setShowModal(true)} style={{ backgroundColor: '#ff9900', color: '#131921', border: 'none', padding: '0.65rem 1.2rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }}>
-                  + Publier mon premier projet
-                </button>
-              </div>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
-                {myProjects.map((p) => (
-                  <div key={p.id} style={{ backgroundColor: '#ffffff', border: '2px solid #0866ff', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                      <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#0866ff', backgroundColor: '#eff6ff', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>Mon Projet</span>
-                      <span style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: '600' }}>● En Ligne</span>
-                    </div>
-                    <h4 style={{ fontSize: '1.1rem', margin: '0.5rem 0', fontWeight: '700' }}>{p.title}</h4>
-                    <p style={{ fontSize: '0.85rem', color: '#475569', marginBottom: '1rem' }}>{p.summary}</p>
-                    <div style={{ backgroundColor: '#f8fafc', padding: '0.6rem', borderRadius: '6px', fontSize: '0.8rem', color: '#475569' }}>
-                      Cible : <strong>{p.funding_goal} USD</strong> | Part : <strong>{p.equity_offered}%</strong>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
-        )}
-
-      </main>
-
-      {/* MODALE SOUMISSION PROJET */}
-      {showModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15,23,42,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '1rem', backdropFilter: 'blur(4px)' }}>
-          <div style={{ backgroundColor: '#ffffff', padding: '1.5rem', borderRadius: '12px', width: '100%', maxWidth: '480px', maxHeight: '90vh', overflowY: 'auto' }}>
-            <h3 style={{ marginTop: 0, marginBottom: '0.4rem', color: '#0f172a', fontWeight: '800', fontSize: '1.2rem' }}>Publier une Idée / Projet [FLASH]</h3>
-            <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '1rem' }}>Modération IA active : Pas de contacts directs ni de vulgarités.</p>
-            
-            {moderationNotice && (
-              <div style={{ backgroundColor: moderationNotice.includes('⚠️') ? '#fef2f2' : '#eff6ff', color: moderationNotice.includes('⚠️') ? '#991b1b' : '#1e40af', padding: '0.6rem', borderRadius: '6px', fontSize: '0.8rem', marginBottom: '1rem', fontWeight: '600' }}>
-                {moderationNotice}
-              </div>
-            )}
-
-            <form onSubmit={handleCreateProject}>
-              <div style={{ marginBottom: '0.85rem' }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.3rem' }}>Titre du projet :</label>
-                <input required type="text" placeholder="Ex: Plateforme logistique" value={newProject.title} onChange={e => setNewProject({...newProject, title: e.target.value})} style={{ width: '100%', padding: '0.55rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }} />
-              </div>
-              <div style={{ marginBottom: '0.85rem' }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.3rem' }}>Résumé du concept :</label>
-                <textarea required rows="3" placeholder="Présentez la valeur..." value={newProject.summary} onChange={e => setNewProject({...newProject, summary: e.target.value})} style={{ width: '100%', padding: '0.55rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}></textarea>
-              </div>
-              <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.3rem' }}>Recherche ($) :</label>
-                  <input required type="number" placeholder="5000" value={newProject.funding_goal} onChange={e => setNewProject({...newProject, funding_goal: e.target.value})} style={{ width: '100%', padding: '0.55rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.3rem' }}>Capital (%) :</label>
-                  <input required type="number" placeholder="10" value={newProject.equity_offered} onChange={e => setNewProject({...newProject, equity_offered: e.target.value})} style={{ width: '100%', padding: '0.55rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }} />
-                </div>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.6rem' }}>
-                <button type="button" onClick={() => setShowModal(false)} style={{ backgroundColor: '#f1f5f9', color: '#475569', border: 'none', padding: '0.55rem 1rem', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '0.85rem' }}>Annuler</button>
-                <button type="submit" style={{ backgroundColor: '#ff9900', color: '#131921', border: 'none', padding: '0.55rem 1rem', borderRadius: '6px', cursor: 'pointer', fontWeight: '700', fontSize: '0.85rem' }}>Soumettre</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODALE SOUMISSION PRESTATAIRE */}
-      {showProviderModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15,23,42,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '1rem', backdropFilter: 'blur(4px)' }}>
-          <div style={{ backgroundColor: '#ffffff', padding: '1.5rem', borderRadius: '12px', width: '100%', maxWidth: '440px' }}>
-            <h3 style={{ marginTop: 0, marginBottom: '0.4rem', color: '#0f172a', fontWeight: '800', fontSize: '1.1rem' }}>Proposer mes services d'expert</h3>
-            <form onSubmit={handleCreateProvider}>
-              <div style={{ marginBottom: '0.85rem' }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.3rem' }}>Nom du cabinet / Expert :</label>
-                <input required type="text" placeholder="Ex: Studio Tech Bujumbura" value={newProvider.name} onChange={e => setNewProvider({...newProvider, name: e.target.value})} style={{ width: '100%', padding: '0.55rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }} />
-              </div>
-              <div style={{ marginBottom: '0.85rem' }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.3rem' }}>Compétences & Services proposés :</label>
-                <textarea required rows="3" placeholder="Ex: Audit légal, développement d'application..." value={newProvider.service} onChange={e => setNewProvider({...newProvider, service: e.target.value})} style={{ width: '100%', padding: '0.55rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}></textarea>
-              </div>
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.3rem' }}>Tarif indicatif :</label>
-                <input required type="text" placeholder="Ex: 30$/heure ou Sur devis" value={newProvider.rate} onChange={e => setNewProvider({...newProvider, rate: e.target.value})} style={{ width: '100%', padding: '0.55rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }} />
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.6rem' }}>
-                <button type="button" onClick={() => setShowProviderModal(false)} style={{ backgroundColor: '#f1f5f9', color: '#475569', border: 'none', padding: '0.55rem 1rem', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '0.85rem' }}>Annuler</button>
-                <button type="submit" style={{ backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.55rem 1rem', borderRadius: '6px', cursor: 'pointer', fontWeight: '700', fontSize: '0.85rem' }}>Enregistrer ma fiche</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODALE DE CONTACT */}
-      {contactModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15,23,42,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: '1000', padding: '1rem', backdropFilter: 'blur(4px)' }}>
-          <div style={{ backgroundColor: '#ffffff', padding: '1.5rem', borderRadius: '12px', width: '100%', maxWidth: '420px' }}>
-            <h3 style={{ marginTop: 0, marginBottom: '0.4rem', color: '#0f172a', fontWeight: '800', fontSize: '1.1rem' }}>Demande de mise en relation</h3>
-            <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '1rem' }}>
-              Pour : <strong>{contactModal.title}</strong>. L'équipe Nexus Hub traite votre demande en toute confidentialité.
-            </p>
-
-            {contactSent ? (
-              <div style={{ backgroundColor: '#f0fdf4', color: '#16a34a', padding: '0.85rem', borderRadius: '8px', textAlign: 'center', fontWeight: '700', fontSize: '0.85rem' }}>
-                ✓ Demande transmise avec succès !
-              </div>
-            ) : (
-              <form onSubmit={handleSendContact}>
-                <div style={{ marginBottom: '0.85rem' }}>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.3rem' }}>Votre rôle :</label>
-                  <select style={{ width: '100%', padding: '0.55rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}>
-                    <option>Investisseur</option>
-                    <option>Prestataire</option>
-                    <option>Partenaire</option>
-                  </select>
-                </div>
-                <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.3rem' }}>Votre message :</label>
-                  <textarea required rows="3" placeholder="Présentez brièvement votre intérêt..." value={contactMessage} onChange={e => setContactMessage(e.target.value)} style={{ width: '100%', padding: '0.55rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}></textarea>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.6rem' }}>
-                  <button type="button" onClick={() => setContactModal(null)} style={{ backgroundColor: '#f1f5f9', color: '#475569', border: 'none', padding: '0.55rem 1rem', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '0.85rem' }}>Fermer</button>
-                  <button type="submit" style={{ backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.55rem 1rem', borderRadius: '6px', cursor: 'pointer', fontWeight: '700', fontSize: '0.85rem' }}>Envoyer la demande</button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
-
-    </div>
-  );
-}
+                .map((p
