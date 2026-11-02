@@ -43,9 +43,9 @@ const TRANSLATIONS = {
     onboardingTitle: "Complete Your Profile Onboarding",
     onboardingSubtitle: "Help us match you with the right opportunities, capital, or experts.",
     btnSaveOnboarding: "Save & Enter Nexus Hub",
-    aiStudioTitle: "AI Landing Page & Pitch Studio",
-    aiStudioDesc: "Generate, customize, and preview professional landing pages for your vetted deals.",
-    btnGenerateShowcase: "✨ Generate AI Showcase"
+    aiStudioTitle: "AI Landing Page & Website Studio",
+    aiStudioDesc: "Generate, customize, and preview professional vibecoder-grade landing pages for your vetted deals.",
+    btnGenerateShowcase: "✨ Generate Professional Website"
   },
   FR: {
     banner: "🌐 NEXUS HUB GLOBAL : Connectez les capitaux internationaux aux opportunités émergentes à forte croissance — Accès qualifié & Conseil.",
@@ -84,8 +84,8 @@ const TRANSLATIONS = {
     onboardingSubtitle: "Aidez-nous à cibler précisément vos attentes, compétences et objectifs.",
     btnSaveOnboarding: "Enregistrer & Accéder à Nexus Hub",
     aiStudioTitle: "Studio de Vitrine Web & Pitch IA",
-    aiStudioDesc: "Générez, personnalisez et prévisualisez des landing pages professionnelles pour vos projets.",
-    btnGenerateShowcase: "✨ Générer la Vitrine IA"
+    aiStudioDesc: "Générez, personnalisez et prévisualisez des sites web et landing pages professionnels pour vos projets.",
+    btnGenerateShowcase: "✨ Générer le Site Web Pro"
   }
 };
 
@@ -100,19 +100,15 @@ export default function NexusHubApp() {
   const [userRole, setUserRole] = useState('Entrepreneur');
   const [authError, setAuthError] = useState('');
 
-  // Onboarding state
   const [isOnboarded, setIsOnboarded] = useState(false);
   const [onboardingData, setOnboardingData] = useState({
-    // Entrepreneur fields
     stage: 'Seed / Amorce',
     category: 'Mobility & Logistics',
     targetGoal: '50000',
     needs: 'Financial Structuring & Due Diligence',
-    // Investor fields
     investorType: 'Business Angel',
     ticketSize: '10,000 - 50,000 USD',
     preferredSectors: 'Technology & EV Mobility',
-    // Advisor fields
     expertise: 'Financial Modeling & Valuation',
     serviceRate: '$75/hour or Project Retainer',
     geoZone: 'Emerging Markets / East Africa'
@@ -136,7 +132,7 @@ export default function NexusHubApp() {
       owner: 'founder@globalventure.com',
       status: 'verified',
       package: 'Premium',
-      ai_showcase: '🚀 [AI Landing Page Showcase]\nCompany: Global Cross-Border EV Mobility\nSector: Mobility & Logistics\nValue Proposition: Scalable electric transit fleet across trade hubs.\nTarget Funding: 50,000 USD | Equity: 12%\nStatus: Verified & Audited by Nexus Hub Global.'
+      hasWebsite: true
     }
   ]);
 
@@ -146,9 +142,8 @@ export default function NexusHubApp() {
   ]);
 
   const [showModal, setShowModal] = useState(false);
-  const [showProviderModal, setShowProviderModal] = useState(false);
   const [contactModal, setContactModal] = useState(null);
-  const [showAiModal, setShowAiModal] = useState(null);
+  const [showWebsiteModal, setShowWebsiteModal] = useState(null);
   const [moderationNotice, setModerationNotice] = useState('');
   const [contactSent, setContactSent] = useState(false);
 
@@ -161,17 +156,10 @@ export default function NexusHubApp() {
     package: 'Standard'
   });
 
-  const [newProvider, setNewProvider] = useState({
-    name: '',
-    service: '',
-    rate: ''
-  });
-
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session) {
-        // Check if user has metadata role
         const metaRole = session.user?.user_metadata?.role;
         if (metaRole) setUserRole(metaRole);
         if (session.user?.user_metadata?.onboarded) setIsOnboarded(true);
@@ -265,7 +253,6 @@ export default function NexusHubApp() {
     }
 
     const isPremium = newProject.package === 'Premium';
-    const generatedShowcase = `🚀 [AI Landing Page Showcase]\nStartup: ${newProject.title}\nSector: ${newProject.category}\nValue Proposition: ${newProject.summary}\nTarget Funding: ${newProject.funding_goal} USD | Equity: ${newProject.equity_offered}%\nStatus: Verified & Audited by Nexus Hub Global.`;
 
     const created = {
       id: Date.now().toString(),
@@ -277,7 +264,7 @@ export default function NexusHubApp() {
       currency: 'USD',
       owner: session?.user?.email || 'Global Founder',
       status: 'verified',
-      ai_showcase: generatedShowcase
+      hasWebsite: true
     };
 
     try {
@@ -292,15 +279,14 @@ export default function NexusHubApp() {
     setNewProject({ title: '', summary: '', category: 'Technology', funding_goal: '', equity_offered: '', package: 'Standard' });
   };
 
-  const handleGenerateAiShowcase = (projectId) => {
+  const handleGenerateWebsite = (projectId) => {
     setProjects(projects.map(p => {
       if (p.id === projectId) {
-        const updatedShowcase = `✨ [AI Studio Landing Page]\nCompany: ${p.title}\nHighlights: ${p.summary}\nMarket Opportunity: High-growth emerging sector (${p.category}). Curated for international capital allocation.`;
-        return { ...p, ai_showcase: updatedShowcase };
+        return { ...p, hasWebsite: true };
       }
       return p;
     }));
-    alert(lang === 'EN' ? 'AI Showcase & Landing Page generated successfully!' : 'Page vitrine & pitch IA générés avec succès !');
+    alert(lang === 'EN' ? 'Professional Vibecoder Website generated successfully!' : 'Site web pro généré avec succès !');
   };
 
   const handleSendContact = (e) => {
@@ -580,9 +566,9 @@ export default function NexusHubApp() {
                           <button onClick={() => setContactModal(p)} style={{ flex: 1, backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.7rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }}>
                             {t.btnInvest}
                           </button>
-                          {p.ai_showcase && (
-                            <button onClick={() => setShowAiModal(p)} style={{ backgroundColor: '#f1f5f9', color: '#0866ff', border: '1px solid #cbd5e1', padding: '0.7rem 0.9rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }} title="View AI Landing Page">
-                              ✨ AI Site
+                          {p.hasWebsite && (
+                            <button onClick={() => setShowWebsiteModal(p)} style={{ backgroundColor: '#f1f5f9', color: '#0866ff', border: '1px solid #cbd5e1', padding: '0.7rem 0.9rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }} title="View Pro Website">
+                              🌐 Web
                             </button>
                           )}
                         </div>
@@ -622,7 +608,7 @@ export default function NexusHubApp() {
           </>
         )}
 
-        {/* Tab 3: Dedicated AI Site Studio (Paid Value Add) */}
+        {/* Tab 3: Dedicated AI Site Studio (Vibecoder Pro Website Generator) */}
         {activeTab === 'ai_builder' && (
           <div style={{ backgroundColor: '#ffffff', padding: '2rem', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
             <div style={{ maxWidth: '700px', marginBottom: '2rem' }}>
@@ -632,7 +618,7 @@ export default function NexusHubApp() {
 
             {myProjects.length === 0 ? (
               <div style={{ backgroundColor: '#f8fafc', padding: '2rem', borderRadius: '12px', textAlign: 'center', border: '1px dashed #cbd5e1' }}>
-                <p style={{ color: '#64748b', marginBottom: '1rem' }}>You need an active project listing to generate an AI website showcase.</p>
+                <p style={{ color: '#64748b', marginBottom: '1rem' }}>You need an active project listing to generate a professional vibecoder website.</p>
                 <button onClick={() => setShowModal(true)} style={{ backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}>
                   {t.btnSubmitProject}
                 </button>
@@ -648,14 +634,12 @@ export default function NexusHubApp() {
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <button onClick={() => handleGenerateAiShowcase(p.id)} style={{ backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.7rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }}>
+                      <button onClick={() => handleGenerateWebsite(p.id)} style={{ backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.7rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }}>
                         {t.btnGenerateShowcase}
                       </button>
-                      {p.ai_showcase && (
-                        <button onClick={() => setShowAiModal(p)} style={{ backgroundColor: '#ffffff', color: '#0866ff', border: '1px solid #0866ff', padding: '0.7rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }}>
-                          👁️ Preview AI Website
-                        </button>
-                      )}
+                      <button onClick={() => setShowWebsiteModal(p)} style={{ backgroundColor: '#ffffff', color: '#0866ff', border: '1px solid #0866ff', padding: '0.7rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }}>
+                        🌐 Live Pro Website Preview
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -677,7 +661,7 @@ export default function NexusHubApp() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
                 <div style={{ backgroundColor: '#ffffff', padding: '1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                   <h4 style={{ fontSize: '1.1rem', margin: '0 0 0.5rem 0', color: '#0866ff' }}>🚀 Founder Control Panel</h4>
-                  <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1rem' }}>Manage your deal applications and compliance checks.</p>
+                  <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1rem' }}>Manage your deal applications and professional website showcases.</p>
                   <button onClick={() => setShowModal(true)} style={{ backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.6rem 1rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }}>
                     {t.btnSubmitProject}
                   </button>
@@ -689,8 +673,9 @@ export default function NexusHubApp() {
                     <p style={{ fontSize: '0.85rem', color: '#64748b' }}>No submissions yet.</p>
                   ) : (
                     myProjects.map(p => (
-                      <div key={p.id} style={{ fontSize: '0.85rem', padding: '0.5rem 0', borderBottom: '1px solid #f1f5f9' }}>
-                        <strong>{p.title}</strong> — <span style={{ color: '#16a34a' }}>{p.status}</span>
+                      <div key={p.id} style={{ fontSize: '0.85rem', padding: '0.5rem 0', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div><strong>{p.title}</strong> — <span style={{ color: '#16a34a' }}>{p.status}</span></div>
+                        <button onClick={() => setShowWebsiteModal(p)} style={{ background: 'none', border: 'none', color: '#0866ff', fontWeight: '700', cursor: 'pointer', fontSize: '0.8rem' }}>View Website</button>
                       </div>
                     ))
                   )}
@@ -805,55 +790,17 @@ export default function NexusHubApp() {
         </div>
       )}
 
-      {/* Modal: AI Showcase & Landing Page Preview */}
-      {showAiModal && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '1rem', zIndex: 1000 }}>
-          <div style={{ backgroundColor: '#ffffff', padding: '2rem', borderRadius: '16px', width: '100%', maxWidth: '540px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ fontSize: '1.2rem', margin: 0, fontWeight: '800', color: '#0866ff' }}>✨ AI Landing Page Showcase</h3>
-              <button onClick={() => setShowAiModal(null)} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', fontWeight: '700' }}>✕</button>
-            </div>
-            <div style={{ backgroundColor: '#0f172a', color: '#38bdf8', padding: '1.25rem', borderRadius: '10px', fontFamily: 'monospace', fontSize: '0.85rem', whiteSpace: 'pre-wrap', lineHeight: '1.5', marginBottom: '1.25rem' }}>
-              {showAiModal.ai_showcase || 'No AI showcase generated yet.'}
-            </div>
-            <button onClick={() => setShowAiModal(null)} style={{ width: '100%', backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.7rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}>
-              Close Preview
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Modal: Investor / Advisory Request */}
-      {contactModal && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '1rem', zIndex: 1000 }}>
-          <div style={{ backgroundColor: '#ffffff', padding: '2rem', borderRadius: '16px', width: '100%', maxWidth: '440px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ fontSize: '1.2rem', margin: 0, fontWeight: '800', color: '#0866ff' }}>{t.contactModalTitle}</h3>
-              <button onClick={() => setContactModal(null)} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', fontWeight: '700' }}>✕</button>
-            </div>
-
-            {contactSent ? (
-              <div style={{ backgroundColor: '#f0fdf4', color: '#16a34a', padding: '1rem', borderRadius: '8px', fontWeight: '700', textAlign: 'center' }}>
-                {t.contactSentMsg}
+      {/* Modal: Immersive Pro Vibecoder Website Preview */}
+      {showWebsiteModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '1rem', zIndex: 1000 }}>
+          <div style={{ backgroundColor: '#090d16', color: '#f8fafc', borderRadius: '20px', width: '100%', maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto', border: '1px solid #1e293b', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
+            
+            {/* Browser Header Bar */}
+            <div style={{ backgroundColor: '#0f172a', padding: '0.85rem 1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', borderTopLeftRadius: '20px', borderTopRightRadius: '20px' }}>
+              <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#ef4444' }}></div>
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#f59e0b' }}></div>
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#10b981' }}></div>
+                <span style={{ fontSize: '0.75rem', color: '#64748b', marginLeft: '0.5rem', fontFamily: 'monospace' }}>https://{showWebsiteModal.title.toLowerCase().replace(/[^a-z0-9]/g, '')}.nexushubglobal.com</span>
               </div>
-            ) : (
-              <form onSubmit={handleSendContact}>
-                <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1rem' }}>
-                  Target Deal: <strong>{contactModal.title}</strong>
-                </p>
-                <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem' }}>Your Message / Ticket Intention:</label>
-                  <textarea required rows="4" placeholder="Specify your investment capacity or advisory inquiry..." style={{ width: '100%', padding: '0.7rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }} />
-                </div>
-                <button type="submit" style={{ width: '100%', backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.75rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}>
-                  Submit Inquiry to Advisory Desk
-                </button>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
-
-    </div>
-  );
-}
+              <button onClick={() => setShowWebsiteModal(null
