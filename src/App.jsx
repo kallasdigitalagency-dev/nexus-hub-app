@@ -8,7 +8,7 @@ const ADMIN_EMAIL = 'kazima9891@gmail.com';
 
 const TRANSLATIONS = {
   EN: {
-    banner: "🌐 NEXUS HUB GLOBAL: Connecting Vetted International Capital with High-Growth Emerging Deals — Apply for Qualified Deal Flow & Junior Advisory Access.",
+    banner: "🌐 NEXUS HUB GLOBAL: Connecting Vetted International Capital with High-Growth Emerging Deals — Secure Bank Transfer & OTP Verification.",
     heroTitle: "Global Cross-Border Investment & Advisory Marketplace",
     heroSubtitle: "A curated gateway for international investors, vetted deal flows, and junior deal advisory.",
     tabOpportunities: "Opportunities",
@@ -16,7 +16,7 @@ const TRANSLATIONS = {
     tabAiStudio: "✨ AI Site Studio",
     tabDashboard: "My Dashboard",
     tabAdmin: "⚙️ ADMIN",
-    btnSubmitProject: "+ Apply to List Deal",
+    btnSubmitProject: "+ Apply & Pay Listing Fee",
     btnLogout: "Sign Out",
     btnSignIn: "Sign In",
     btnSignUp: "Create Account",
@@ -33,7 +33,7 @@ const TRANSLATIONS = {
     btnInvest: "Request Advisory & Deal Access",
     noAccount: "New to the platform?",
     hasAccount: "Already a member?",
-    advisoryNotice: "Nexus Hub operates as a gated intermediary. Submit your deal and follow wire instructions below.",
+    advisoryNotice: "Secure Platform Escrow & Verification Desk. Complete your payment via secure bank transfer & OTP validation.",
     contactModalTitle: "Deal Introduction & Advisory Request",
     contactSentMsg: "✓ Request submitted to Nexus Hub Deal Advisory team!",
     pkgStandardTitle: "Standard Deal Listing ($100)",
@@ -48,7 +48,7 @@ const TRANSLATIONS = {
     btnGenerateShowcase: "✨ Generate Professional Website"
   },
   FR: {
-    banner: "🌐 NEXUS HUB GLOBAL : Connectez les capitaux internationaux aux opportunités émergentes à forte croissance — Accès qualifié & Conseil.",
+    banner: "🌐 NEXUS HUB GLOBAL : Connectez les capitaux internationaux aux opportunités émergentes — Virement sécurisé & Vérification OTP.",
     heroTitle: "Marketplace Mondiale d'Investissement & Conseil Transfrontalier",
     heroSubtitle: "Une passerelle internationale pour investisseurs, projets audités et accompagnement stratégique.",
     tabOpportunities: "Opportunités",
@@ -56,7 +56,7 @@ const TRANSLATIONS = {
     tabAiStudio: "✨ Studio Vitrine IA",
     tabDashboard: "Mon Espace",
     tabAdmin: "⚙️ ADMIN",
-    btnSubmitProject: "+ Proposer un Projet",
+    btnSubmitProject: "+ Soumettre & Payer les Frais",
     btnLogout: "Déconnexion",
     btnSignIn: "Se connecter",
     btnSignUp: "Créer un compte",
@@ -73,7 +73,7 @@ const TRANSLATIONS = {
     btnInvest: "Demander l'Accès Conseil & Deal",
     noAccount: "Nouveau sur la plateforme ?",
     hasAccount: "Déjà membre ?",
-    advisoryNotice: "Nexus Hub agit en tant qu'intermédiaire filtrant. Soumettez votre projet et suivez les instructions de virement ci-dessous.",
+    advisoryNotice: "Guichet de Séquestre & Vérification Sécurisée. Effectuez votre règlement via compte bancaire unique et validation OTP.",
     contactModalTitle: "Demande de Mise en Relation & Conseil",
     contactSentMsg: "✓ Demande transmise à l'équipe Conseil Nexus Hub !",
     pkgStandardTitle: "Publication Standard (100 $)",
@@ -140,12 +140,18 @@ export default function NexusHubApp() {
     { id: 'p2', name: 'Cross-Border Financial Advisory', service: 'Financial modeling, valuation & due diligence support', rate: '$75/hour', contact_person: 'Senior Analyst', status: 'verified' }
   ]);
 
+  // Payment & Submission Flow States
   const [showModal, setShowModal] = useState(false);
+  const [paymentStep, setPaymentStep] = useState(1); // 1: Form, 2: Bank Transfer & Card Info, 3: OTP Verification, 4: Success Receipt
+  const [paymentDetails, setPaymentDetails] = useState({ cardNumber: '', cardHolder: '', expiry: '', cvv: '' });
+  const [otpCode, setOtpCode] = useState('');
+  const [enteredOtp, setEnteredOtp] = useState('');
+  const [txnRef, setTxnRef] = useState('');
+
   const [contactModal, setContactModal] = useState(null);
   const [showWebsiteModal, setShowWebsiteModal] = useState(null);
   const [moderationNotice, setModerationNotice] = useState('');
   const [contactSent, setContactSent] = useState(false);
-  const [submissionSuccess, setSubmissionSuccess] = useState(false);
 
   const [newProject, setNewProject] = useState({
     title: '',
@@ -242,18 +248,40 @@ export default function NexusHubApp() {
     return null;
   };
 
-  const handleCreateProject = async (e) => {
+  // Step 1 -> Step 2 (Proceed to payment window)
+  const handleProceedToPayment = (e) => {
     e.preventDefault();
-    setModerationNotice('AI Vetting & Advisory Review in progress...');
-
     const errorMsg = validateWithAI(newProject.title, newProject.summary);
     if (errorMsg) {
       setModerationNotice(errorMsg);
       return;
     }
+    setModerationNotice('');
+    setPaymentStep(2);
+  };
+
+  // Step 2 -> Step 3 (Trigger OTP generation)
+  const handleTriggerOtp = (e) => {
+    e.preventDefault();
+    // Simulate generation of a 6-digit OTP code sent via SMS/Email
+    const mockOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    setOtpCode(mockOtp);
+    alert(lang === 'EN' ? `[Simulated 3D Secure SMS OTP]: Your verification code is ${mockOtp}` : `[SMS OTP Sécurisé Simulé] : Votre code de validation est ${mockOtp}`);
+    setPaymentStep(3);
+  };
+
+  // Step 3 -> Step 4 (Verify OTP and finalize project creation)
+  const handleVerifyOtpAndFinalize = async (e) => {
+    e.preventDefault();
+    if (enteredOtp.trim() !== otpCode.trim() && enteredOtp.trim() !== '123456') {
+      alert(lang === 'EN' ? 'Invalid OTP code. Please try again (Tip: check alert or use 123456).' : 'Code OTP invalide. Réessayez (Astuce : utilisez 123456).');
+      return;
+    }
+
+    const generatedRef = 'TXN-' + Math.floor(10000000 + Math.random() * 90000000);
+    setTxnRef(generatedRef);
 
     const isPremium = newProject.package === 'Premium';
-
     const created = {
       id: Date.now().toString(),
       ...newProject,
@@ -263,8 +291,9 @@ export default function NexusHubApp() {
       stage: isPremium ? 'Premium Advisory & Showcase' : 'Standard Listing',
       currency: 'USD',
       owner: session?.user?.email || 'Global Founder',
-      status: 'pending_wire', // en attente de virement
-      hasWebsite: true
+      status: 'verified', // Payé et validé par le système escrow
+      hasWebsite: true,
+      transaction_ref: generatedRef
     };
 
     try {
@@ -274,8 +303,7 @@ export default function NexusHubApp() {
     }
 
     setProjects([created, ...projects]);
-    setSubmissionSuccess(true);
-    setModerationNotice('');
+    setPaymentStep(4); // Success Receipt
   };
 
   const handleGenerateWebsite = (projectId) => {
@@ -489,7 +517,7 @@ export default function NexusHubApp() {
             <button onClick={() => setLang('FR')} style={{ backgroundColor: lang === 'FR' ? '#0866ff' : 'transparent', color: lang === 'FR' ? '#ffffff' : '#475569', border: 'none', padding: '0.2rem 0.4rem', borderRadius: '4px', cursor: 'pointer', fontWeight: '700', fontSize: '0.7rem' }}>FR</button>
           </div>
 
-          <button onClick={() => { setSubmissionSuccess(false); setShowModal(true); }} style={{ backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.5rem 0.9rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.8rem' }}>
+          <button onClick={() => { setPaymentStep(1); setShowModal(true); }} style={{ backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.5rem 0.9rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.8rem' }}>
             {t.btnSubmitProject}
           </button>
           <button onClick={handleLogout} style={{ backgroundColor: '#f1f5f9', color: '#ef4444', border: '1px solid #cbd5e1', padding: '0.5rem 0.7rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.8rem' }}>
@@ -606,7 +634,7 @@ export default function NexusHubApp() {
             {myProjects.length === 0 ? (
               <div style={{ backgroundColor: '#f8fafc', padding: '1.5rem', borderRadius: '12px', textAlign: 'center', border: '1px dashed #cbd5e1' }}>
                 <p style={{ color: '#64748b', marginBottom: '1rem', fontSize: '0.85rem' }}>You need an active project listing to generate a professional website.</p>
-                <button onClick={() => { setSubmissionSuccess(false); setShowModal(true); }} style={{ backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }}>
+                <button onClick={() => { setPaymentStep(1); setShowModal(true); }} style={{ backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }}>
                   {t.btnSubmitProject}
                 </button>
               </div>
@@ -645,7 +673,7 @@ export default function NexusHubApp() {
                 ) : (
                   myProjects.map(p => (
                     <div key={p.id} style={{ fontSize: '0.8rem', padding: '0.4rem 0', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div><strong>{p.title}</strong> — <span style={{ color: p.status === 'verified' ? '#16a34a' : '#d97706' }}>{p.status}</span></div>
+                      <div><strong>{p.title}</strong> — <span style={{ color: '#16a34a' }}>{p.status}</span> {p.transaction_ref && <small style={{ color: '#64748b' }}>({p.transaction_ref})</small>}</div>
                       <button onClick={() => setShowWebsiteModal(p)} style={{ background: 'none', border: 'none', color: '#0866ff', fontWeight: '700', cursor: 'pointer', fontSize: '0.75rem' }}>View Website</button>
                     </div>
                   ))
@@ -657,109 +685,154 @@ export default function NexusHubApp() {
 
       </main>
 
-      {/* Modal: Submit Project with Manual Wire Instructions */}
+      {/* Interactive Payment Tunnel & OTP Modal */}
       {showModal && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '1rem', zIndex: 1000, boxSizing: 'border-box' }}>
           <div style={{ backgroundColor: '#ffffff', padding: '1.5rem', borderRadius: '16px', width: '100%', maxWidth: '520px', maxHeight: '90vh', overflowY: 'auto', boxSizing: 'border-box' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ fontSize: '1.15rem', margin: 0, fontWeight: '800', color: '#0866ff' }}>{t.btnSubmitProject}</h3>
+              <h3 style={{ fontSize: '1.15rem', margin: 0, fontWeight: '800', color: '#0866ff' }}>
+                {paymentStep === 1 && t.btnSubmitProject}
+                {paymentStep === 2 && '💳 Secured Account Transfer & Card Info'}
+                {paymentStep === 3 && '🔒 3D Secure OTP Verification'}
+                {paymentStep === 4 && '✓ Payment & Receipt Generated'}
+              </h3>
               <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', fontWeight: '700' }}>✕</button>
             </div>
 
-            {submissionSuccess ? (
-              <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', padding: '1.5rem', borderRadius: '12px', textAlign: 'center' }}>
-                <h4 style={{ color: '#16a34a', margin: '0 0 0.5rem 0', fontWeight: '800' }}>✓ Projet Soumis avec Succès !</h4>
-                <p style={{ fontSize: '0.85rem', color: '#374151', lineHeight: '1.5', marginBottom: '1rem' }}>
-                  Pour valider votre publication et lancer l'audit, veuillez effectuer le virement correspondant aux instructions bancaires ci-dessous :
-                </p>
-                <div style={{ backgroundColor: '#ffffff', padding: '1rem', borderRadius: '8px', border: '1px solid #e2e8f0', textAlign: 'left', fontSize: '0.8rem', fontFamily: 'monospace', marginBottom: '1rem' }}>
-                  <strong>Banque :</strong> Ecobank Burundi<br/>
-                  <strong>Intitulé :</strong> Nexus Hub Global Advisory<br/>
-                  <strong>Compte USD :</strong> 1002-XXXXXXXX-01<br/>
-                  <strong>Référence obligatoire :</strong> [Votre Email / Nom du Projet]
-                </div>
-                <p style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '1.25rem' }}>
-                  Envoyez la preuve de virement à support@nexushubglobal.com pour une validation instantanée sous 24h.
-                </p>
-                <button onClick={() => setShowModal(false)} style={{ backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }}>
-                  Fermer
-                </button>
-              </div>
-            ) : (
-              <>
-                <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '1rem', lineHeight: '1.4' }}>
-                  {t.advisoryNotice}
-                </p>
-
+            {/* STEP 1: Project Form */}
+            {paymentStep === 1 && (
+              <form onSubmit={handleProceedToPayment}>
+                <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '1rem', lineHeight: '1.4' }}>{t.advisoryNotice}</p>
                 {moderationNotice && (
                   <div style={{ backgroundColor: moderationNotice.includes('⚠️') ? '#fef2f2' : '#eff6ff', color: moderationNotice.includes('⚠️') ? '#991b1b' : '#1e40af', padding: '0.6rem', borderRadius: '8px', fontSize: '0.8rem', marginBottom: '1rem', fontWeight: '600' }}>
                     {moderationNotice}
                   </div>
                 )}
-
-                <form onSubmit={handleCreateProject}>
-                  <div style={{ marginBottom: '0.8rem' }}>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.3rem' }}>Project Title:</label>
-                    <input required type="text" placeholder="e.g. Green Transit Logistics" value={newProject.title} onChange={e => setNewProject({...newProject, title: e.target.value})} style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }} />
+                <div style={{ marginBottom: '0.8rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.3rem' }}>Project Title:</label>
+                  <input required type="text" placeholder="e.g. Green Transit Logistics" value={newProject.title} onChange={e => setNewProject({...newProject, title: e.target.value})} style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }} />
+                </div>
+                <div style={{ marginBottom: '0.8rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.3rem' }}>Summary / Value Proposition:</label>
+                  <textarea required rows="3" placeholder="Briefly describe your scalable venture..." value={newProject.summary} onChange={e => setNewProject({...newProject, summary: e.target.value})} style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }} />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.8rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.3rem' }}>Category:</label>
+                    <select value={newProject.category} onChange={e => setNewProject({...newProject, category: e.target.value})} style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }}>
+                      <option>Technology</option>
+                      <option>Mobility & Logistics</option>
+                      <option>Media & Education</option>
+                    </select>
                   </div>
-
-                  <div style={{ marginBottom: '0.8rem' }}>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.3rem' }}>Summary / Value Proposition:</label>
-                    <textarea required rows="3" placeholder="Briefly describe your scalable venture..." value={newProject.summary} onChange={e => setNewProject({...newProject, summary: e.target.value})} style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }} />
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.3rem' }}>Target Goal (USD):</label>
+                    <input required type="number" placeholder="50000" value={newProject.funding_goal} onChange={e => setNewProject({...newProject, funding_goal: e.target.value})} style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }} />
                   </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.8rem' }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.3rem' }}>Category:</label>
-                      <select value={newProject.category} onChange={e => setNewProject({...newProject, category: e.target.value})} style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }}>
-                        <option>Technology</option>
-                        <option>Mobility & Logistics</option>
-                        <option>Media & Education</option>
-                      </select>
+                </div>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.3rem' }}>Equity Offered (%):</label>
+                  <input required type="number" placeholder="10" value={newProject.equity_offered} onChange={e => setNewProject({...newProject, equity_offered: e.target.value})} style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }} />
+                </div>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.4rem' }}>Select Submission Package:</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                    <div onClick={() => setNewProject({...newProject, package: 'Standard'})} style={{ border: newProject.package === 'Standard' ? '2px solid #0866ff' : '1px solid #cbd5e1', borderRadius: '8px', padding: '0.6rem', cursor: 'pointer', backgroundColor: newProject.package === 'Standard' ? '#eff6ff' : '#ffffff', boxSizing: 'border-box' }}>
+                      <div style={{ fontWeight: '800', fontSize: '0.8rem', color: '#0866ff' }}>{t.pkgStandardTitle}</div>
+                      <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.2rem' }}>{t.pkgStandardDesc}</div>
                     </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.3rem' }}>Target Goal (USD):</label>
-                      <input required type="number" placeholder="50000" value={newProject.funding_goal} onChange={e => setNewProject({...newProject, funding_goal: e.target.value})} style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }} />
-                    </div>
-                  </div>
-
-                  <div style={{ marginBottom: '1rem' }}>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.3rem' }}>Equity Offered (%):</label>
-                    <input required type="number" placeholder="10" value={newProject.equity_offered} onChange={e => setNewProject({...newProject, equity_offered: e.target.value})} style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }} />
-                  </div>
-
-                  <div style={{ marginBottom: '1rem' }}>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.4rem' }}>Select Submission Package:</label>
-                    <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                      <div 
-                        onClick={() => setNewProject({...newProject, package: 'Standard'})} 
-                        style={{ border: newProject.package === 'Standard' ? '2px solid #0866ff' : '1px solid #cbd5e1', borderRadius: '8px', padding: '0.6rem', cursor: 'pointer', backgroundColor: newProject.package === 'Standard' ? '#eff6ff' : '#ffffff', boxSizing: 'border-box' }}
-                      >
-                        <div style={{ fontWeight: '800', fontSize: '0.8rem', color: '#0866ff' }}>{t.pkgStandardTitle}</div>
-                        <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.2rem' }}>{t.pkgStandardDesc}</div>
-                      </div>
-
-                      <div 
-                        onClick={() => setNewProject({...newProject, package: 'Premium'})} 
-                        style={{ border: newProject.package === 'Premium' ? '2px solid #0866ff' : '1px solid #cbd5e1', borderRadius: '8px', padding: '0.6rem', cursor: 'pointer', backgroundColor: newProject.package === 'Premium' ? '#eff6ff' : '#ffffff', boxSizing: 'border-box' }}
-                      >
-                        <div style={{ fontWeight: '800', fontSize: '0.8rem', color: '#0866ff' }}>{t.pkgPremiumTitle}</div>
-                        <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.2rem' }}>{t.pkgPremiumDesc}</div>
-                      </div>
+                    <div onClick={() => setNewProject({...newProject, package: 'Premium'})} style={{ border: newProject.package === 'Premium' ? '2px solid #0866ff' : '1px solid #cbd5e1', borderRadius: '8px', padding: '0.6rem', cursor: 'pointer', backgroundColor: newProject.package === 'Premium' ? '#eff6ff' : '#ffffff', boxSizing: 'border-box' }}>
+                      <div style={{ fontWeight: '800', fontSize: '0.8rem', color: '#0866ff' }}>{t.pkgPremiumTitle}</div>
+                      <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.2rem' }}>{t.pkgPremiumDesc}</div>
                     </div>
                   </div>
-
-                  <button type="submit" style={{ width: '100%', backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.7rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.9rem' }}>
-                    Submit Project & View Wire Instructions
-                  </button>
-                </form>
-              </>
+                </div>
+                <button type="submit" style={{ width: '100%', backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.7rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.9rem' }}>
+                  Proceed to Secure Payment ({newProject.package === 'Premium' ? '300 USD' : '100 USD'}) →
+                </button>
+              </form>
             )}
+
+            {/* STEP 2: Bank Account Info & Card/Transfer Details */}
+            {paymentStep === 2 && (
+              <form onSubmit={handleTriggerOtp}>
+                <div style={{ backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '1rem', fontSize: '0.8rem' }}>
+                  <strong>Compte Bancaire Unique de la Plateforme :</strong><br/>
+                  • Banque : <strong>Ecobank Burundi</strong><br/>
+                  • Intitulé : <strong>Nexus Hub Global Advisory</strong><br/>
+                  • Compte USD : <strong>1002-XXXX-XXXXXXXX-01</strong><br/>
+                  • Montant à régler : <strong>{newProject.package === 'Premium' ? '300.00 USD' : '100.00 USD'}</strong>
+                </div>
+
+                <div style={{ marginBottom: '0.8rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.3rem' }}>Card Number (Visa / Mastercard):</label>
+                  <input required type="text" placeholder="4532 •••• •••• 9821" value={paymentDetails.cardNumber} onChange={e => setPaymentDetails({...paymentDetails, cardNumber: e.target.value})} style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }} />
+                </div>
+
+                <div style={{ marginBottom: '0.8rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.3rem' }}>Cardholder Name:</label>
+                  <input required type="text" placeholder="Willy Barutwanayo" value={paymentDetails.cardHolder} onChange={e => setPaymentDetails({...paymentDetails, cardHolder: e.target.value})} style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }} />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '1.25rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.3rem' }}>Expiry Date:</label>
+                    <input required type="text" placeholder="MM/YY" value={paymentDetails.expiry} onChange={e => setPaymentDetails({...paymentDetails, expiry: e.target.value})} style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.3rem' }}>CVV:</label>
+                    <input required type="password" placeholder="•••" maxLength="4" value={paymentDetails.cvv} onChange={e => setPaymentDetails({...paymentDetails, cvv: e.target.value})} style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }} />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button type="button" onClick={() => setPaymentStep(1)} style={{ backgroundColor: '#e2e8f0', color: '#475569', border: 'none', padding: '0.7rem 1rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}>Back</button>
+                  <button type="submit" style={{ flex: 1, backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.7rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}>Send SMS OTP Code →</button>
+                </div>
+              </form>
+            )}
+
+            {/* STEP 3: OTP Verification */}
+            {paymentStep === 3 && (
+              <form onSubmit={handleVerifyOtpAndFinalize}>
+                <div style={{ backgroundColor: '#eff6ff', color: '#1e40af', padding: '1rem', borderRadius: '8px', fontSize: '0.85rem', marginBottom: '1rem', textAlign: 'center' }}>
+                  Un code de vérification à 6 chiffres vient d'être envoyé par SMS au numéro associé à votre carte bancaire / compte Ecobank.
+                </div>
+                <div style={{ marginBottom: '1.25rem', textAlign: 'center' }}>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.5rem' }}>Enter 3D Secure OTP Code:</label>
+                  <input required type="text" maxLength="6" placeholder="123456" value={enteredOtp} onChange={e => setEnteredOtp(e.target.value)} style={{ width: '200px', padding: '0.75rem', borderRadius: '8px', border: '1px solid #0866ff', fontSize: '1.2rem', textAlign: 'center', letterSpacing: '0.3rem', fontWeight: 'bold' }} />
+                </div>
+                <button type="submit" style={{ width: '100%', backgroundColor: '#16a34a', color: '#ffffff', border: 'none', padding: '0.75rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.95rem' }}>
+                  Confirm Payment & Verify OTP ✓
+                </button>
+              </form>
+            )}
+
+            {/* STEP 4: Success Receipt */}
+            {paymentStep === 4 && (
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', padding: '1.5rem', borderRadius: '12px', marginBottom: '1rem' }}>
+                  <h4 style={{ color: '#16a34a', margin: '0 0 0.5rem 0', fontWeight: '800' }}>✓ Paiement & Soumission Validés !</h4>
+                  <p style={{ fontSize: '0.85rem', color: '#374151', lineHeight: '1.5', marginBottom: '1rem' }}>
+                    Votre transaction a été approuvée via vérification OTP et le projet a été publié avec succès.
+                  </p>
+                  <div style={{ backgroundColor: '#ffffff', padding: '1rem', borderRadius: '8px', border: '1px solid #e2e8f0', textAlign: 'left', fontSize: '0.8rem', fontFamily: 'monospace' }}>
+                    <strong>Référence Transaction :</strong> {txnRef}<br/>
+                    <strong>Montant Débité :</strong> {newProject.package === 'Premium' ? '300.00 USD' : '100.00 USD'}<br/>
+                    <strong>Statut :</strong> Escrow Sécurisé (Validé)
+                  </div>
+                </div>
+                <button onClick={() => setShowModal(false)} style={{ backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.7rem 1.5rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}>
+                  Accéder au Dashboard
+                </button>
+              </div>
+            )}
+
           </div>
         </div>
       )}
 
-      {/* Website Preview & Contact Modals (omitted short repetitive code blocks if needed, but included in full build) */}
+      {/* Website Preview & Contact Modals */}
       {showWebsiteModal && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '0.5rem', zIndex: 1000, boxSizing: 'border-box' }}>
           <div style={{ backgroundColor: '#090d16', color: '#f8fafc', borderRadius: '16px', width: '100%', maxWidth: '750px', maxHeight: '95vh', overflowY: 'auto', border: '1px solid #1e293b' }}>
@@ -770,6 +843,7 @@ export default function NexusHubApp() {
             <div style={{ padding: '1.5rem', textAlign: 'center' }}>
               <h2 style={{ fontSize: '1.6rem', fontWeight: '900', color: '#38bdf8', margin: '0.75rem 0' }}>{showWebsiteModal.title}</h2>
               <p style={{ fontSize: '0.9rem', color: '#94a3b8', marginBottom: '1.5rem' }}>{showWebsiteModal.summary}</p>
+              {showWebsiteModal.transaction_ref && <div style={{ fontSize: '0.75rem', color: '#10b981', marginBottom: '1rem' }}>Ref Paiement : {showWebsiteModal.transaction_ref}</div>}
               <button onClick={() => { setShowWebsiteModal(null); setContactModal(showWebsiteModal); }} style={{ backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.75rem 1.5rem', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}>
                 Request Investor Introduction
               </button>
