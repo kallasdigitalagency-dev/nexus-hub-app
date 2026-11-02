@@ -13,7 +13,7 @@ const TRANSLATIONS = {
     heroSubtitle: "A curated gateway for international investors, vetted deal flows, and junior deal advisory.",
     tabOpportunities: "Opportunities",
     tabAdvisory: "Advisory & Experts",
-    tabInvestors: "Angel & Institutional",
+    tabAiStudio: "✨ AI Site Studio",
     tabDashboard: "My Dashboard",
     tabAdmin: "⚙️ ADMIN",
     btnSubmitProject: "+ Apply to List Deal",
@@ -36,15 +36,16 @@ const TRANSLATIONS = {
     advisoryNotice: "Nexus Hub operates as a gated intermediary and advisory partner. Entry & vetting fees apply upon submission.",
     contactModalTitle: "Deal Introduction & Advisory Request",
     contactSentMsg: "✓ Request submitted to Nexus Hub Deal Advisory team!",
-    pkgStandardTitle: "Standard Deal Listing",
-    pkgStandardPrice: "$100",
+    pkgStandardTitle: "Standard Deal Listing ($100)",
     pkgStandardDesc: "Basic vetting, compliance check & marketplace listing.",
-    pkgPremiumTitle: "Premium Advisory + AI Showcase",
-    pkgPremiumPrice: "$300",
+    pkgPremiumTitle: "Premium Advisory + AI Showcase ($300)",
     pkgPremiumDesc: "Priority vetting, expert review & dedicated AI-generated landing page.",
-    btnSelectPkg: "Select Package & Pay",
-    aiGeneratorTitle: "AI Landing Page & Pitch Generator",
-    btnGenerateAI: "✨ Generate AI Showcase & Pitch"
+    onboardingTitle: "Complete Your Profile Onboarding",
+    onboardingSubtitle: "Help us match you with the right opportunities, capital, or experts.",
+    btnSaveOnboarding: "Save & Enter Nexus Hub",
+    aiStudioTitle: "AI Landing Page & Pitch Studio",
+    aiStudioDesc: "Generate, customize, and preview professional landing pages for your vetted deals.",
+    btnGenerateShowcase: "✨ Generate AI Showcase"
   },
   FR: {
     banner: "🌐 NEXUS HUB GLOBAL : Connectez les capitaux internationaux aux opportunités émergentes à forte croissance — Accès qualifié & Conseil.",
@@ -52,7 +53,7 @@ const TRANSLATIONS = {
     heroSubtitle: "Une passerelle internationale pour investisseurs, projets audités et accompagnement stratégique.",
     tabOpportunities: "Opportunités",
     tabAdvisory: "Conseils & Experts",
-    tabInvestors: "Investisseurs & Angels",
+    tabAiStudio: "✨ Studio Vitrine IA",
     tabDashboard: "Mon Espace",
     tabAdmin: "⚙️ ADMIN",
     btnSubmitProject: "+ Proposer un Projet",
@@ -75,15 +76,16 @@ const TRANSLATIONS = {
     advisoryNotice: "Nexus Hub agit en tant qu'intermédiaire filtrant et partenaire conseil. Des frais de dossier s'appliquent à la soumission.",
     contactModalTitle: "Demande de Mise en Relation & Conseil",
     contactSentMsg: "✓ Demande transmise à l'équipe Conseil Nexus Hub !",
-    pkgStandardTitle: "Publication Standard",
-    pkgStandardPrice: "100 $",
+    pkgStandardTitle: "Publication Standard (100 $)",
     pkgStandardDesc: "Audit de base, vérification de conformité & publication marketplace.",
-    pkgPremiumTitle: "Conseil Premium + Vitrine IA",
-    pkgPremiumPrice: "300 $",
+    pkgPremiumTitle: "Conseil Premium + Vitrine IA (300 $)",
     pkgPremiumDesc: "Audit prioritaire, revue d'expert & page vitrine IA dédiée générée automatiquement.",
-    btnSelectPkg: "Sélectionner ce Pack & Payer",
-    aiGeneratorTitle: "Générateur IA de Page Vitrine & Pitch",
-    btnGenerateAI: "✨ Générer la Vitrine & Pitch IA"
+    onboardingTitle: "Complétez votre Profil d'Onboarding",
+    onboardingSubtitle: "Aidez-nous à cibler précisément vos attentes, compétences et objectifs.",
+    btnSaveOnboarding: "Enregistrer & Accéder à Nexus Hub",
+    aiStudioTitle: "Studio de Vitrine Web & Pitch IA",
+    aiStudioDesc: "Générez, personnalisez et prévisualisez des landing pages professionnelles pour vos projets.",
+    btnGenerateShowcase: "✨ Générer la Vitrine IA"
   }
 };
 
@@ -95,8 +97,26 @@ export default function NexusHubApp() {
   const [authMode, setAuthMode] = useState('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [userRole, setUserRole] = useState(t.roleEntrepreneur);
+  const [userRole, setUserRole] = useState('Entrepreneur');
   const [authError, setAuthError] = useState('');
+
+  // Onboarding state
+  const [isOnboarded, setIsOnboarded] = useState(false);
+  const [onboardingData, setOnboardingData] = useState({
+    // Entrepreneur fields
+    stage: 'Seed / Amorce',
+    category: 'Mobility & Logistics',
+    targetGoal: '50000',
+    needs: 'Financial Structuring & Due Diligence',
+    // Investor fields
+    investorType: 'Business Angel',
+    ticketSize: '10,000 - 50,000 USD',
+    preferredSectors: 'Technology & EV Mobility',
+    // Advisor fields
+    expertise: 'Financial Modeling & Valuation',
+    serviceRate: '$75/hour or Project Retainer',
+    geoZone: 'Emerging Markets / East Africa'
+  });
 
   const [activeTab, setActiveTab] = useState('projects');
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -116,7 +136,7 @@ export default function NexusHubApp() {
       owner: 'founder@globalventure.com',
       status: 'verified',
       package: 'Premium',
-      ai_showcase: '🚀 Project Showcase: Leader in sustainable EV transit solutions with robust cross-border logistics.'
+      ai_showcase: '🚀 [AI Landing Page Showcase]\nCompany: Global Cross-Border EV Mobility\nSector: Mobility & Logistics\nValue Proposition: Scalable electric transit fleet across trade hubs.\nTarget Funding: 50,000 USD | Equity: 12%\nStatus: Verified & Audited by Nexus Hub Global.'
     }
   ]);
 
@@ -150,10 +170,22 @@ export default function NexusHubApp() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      if (session) {
+        // Check if user has metadata role
+        const metaRole = session.user?.user_metadata?.role;
+        if (metaRole) setUserRole(metaRole);
+        if (session.user?.user_metadata?.onboarded) setIsOnboarded(true);
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      if (session?.user?.user_metadata?.role) {
+        setUserRole(session.user.user_metadata.role);
+      }
+      if (session?.user?.user_metadata?.onboarded) {
+        setIsOnboarded(true);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -181,18 +213,33 @@ export default function NexusHubApp() {
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { role: userRole } }
+        options: { data: { role: userRole, onboarded: false } }
       });
       if (error) setAuthError(error.message);
-      else alert(lang === 'EN' ? 'Account created! You can now sign in.' : 'Compte créé ! Vous pouvez vous connecter.');
+      else {
+        alert(lang === 'EN' ? 'Account created! Please complete your onboarding.' : 'Compte créé ! Veuillez compléter votre onboarding.');
+      }
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) setAuthError(lang === 'EN' ? 'Invalid email or password.' : 'Identifiants incorrects.');
     }
   };
 
+  const handleCompleteOnboarding = async (e) => {
+    e.preventDefault();
+    setIsOnboarded(true);
+    try {
+      await supabase.auth.updateUser({
+        data: { role: userRole, onboarding: onboardingData, onboarded: true }
+      });
+    } catch (err) {
+      console.warn('Local onboarding state saved');
+    }
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    setIsOnboarded(false);
   };
 
   const validateWithAI = (title, summary) => {
@@ -218,13 +265,11 @@ export default function NexusHubApp() {
     }
 
     const isPremium = newProject.package === 'Premium';
-    const generatedShowcase = `🚀 [AI Showcase Landing Page]\nStartup: ${newProject.title}\nSector: ${newProject.category}\nValue Proposition: ${newProject.summary}\nTarget Funding: ${newProject.funding_goal} USD | Equity: ${newProject.equity_offered}%\nStatus: Verified & Audited by Nexus Hub Global.`;
+    const generatedShowcase = `🚀 [AI Landing Page Showcase]\nStartup: ${newProject.title}\nSector: ${newProject.category}\nValue Proposition: ${newProject.summary}\nTarget Funding: ${newProject.funding_goal} USD | Equity: ${newProject.equity_offered}%\nStatus: Verified & Audited by Nexus Hub Global.`;
 
     const created = {
       id: Date.now().toString(),
-      title: newProject.title,
-      summary: newProject.summary,
-      category: newProject.category,
+      ...newProject,
       funding_goal: Number(newProject.funding_goal),
       amount_raised: 0,
       equity_offered: Number(newProject.equity_offered),
@@ -232,7 +277,6 @@ export default function NexusHubApp() {
       currency: 'USD',
       owner: session?.user?.email || 'Global Founder',
       status: 'verified',
-      package: newProject.package,
       ai_showcase: generatedShowcase
     };
 
@@ -251,25 +295,12 @@ export default function NexusHubApp() {
   const handleGenerateAiShowcase = (projectId) => {
     setProjects(projects.map(p => {
       if (p.id === projectId) {
-        const updatedShowcase = `✨ [AI Optimized Pitch & Landing Page Updated]\nCompany: ${p.title}\nHighlights: ${p.summary}\nMarket Opportunity: High-growth emerging sector (${p.category}). Ready for international capital allocation.`;
+        const updatedShowcase = `✨ [AI Studio Landing Page]\nCompany: ${p.title}\nHighlights: ${p.summary}\nMarket Opportunity: High-growth emerging sector (${p.category}). Curated for international capital allocation.`;
         return { ...p, ai_showcase: updatedShowcase };
       }
       return p;
     }));
     alert(lang === 'EN' ? 'AI Showcase & Landing Page generated successfully!' : 'Page vitrine & pitch IA générés avec succès !');
-  };
-
-  const handleCreateProvider = (e) => {
-    e.preventDefault();
-    const createdProvider = {
-      id: 'p_' + Date.now(),
-      ...newProvider,
-      contact_person: session?.user?.email || 'Advisor',
-      status: 'verified'
-    };
-    setProviders([createdProvider, ...providers]);
-    setShowProviderModal(false);
-    setNewProvider({ name: '', service: '', rate: '' });
   };
 
   const handleSendContact = (e) => {
@@ -283,6 +314,7 @@ export default function NexusHubApp() {
 
   const isAdmin = session?.user?.email?.trim().toLowerCase() === ADMIN_EMAIL.trim().toLowerCase();
 
+  // 1. Auth Screen
   if (!session) {
     return (
       <div style={{ fontFamily: 'Segoe UI, Roboto, sans-serif', backgroundColor: '#0f172a', minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '1rem' }}>
@@ -319,9 +351,9 @@ export default function NexusHubApp() {
               <div style={{ marginBottom: '1.25rem' }}>
                 <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem' }}>{t.roleLabel}</label>
                 <select value={userRole} onChange={e => setUserRole(e.target.value)} style={{ width: '100%', padding: '0.7rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }}>
-                  <option>{t.roleEntrepreneur}</option>
-                  <option>{t.roleInvestor}</option>
-                  <option>{t.roleAdvisor}</option>
+                  <option value="Entrepreneur">{t.roleEntrepreneur}</option>
+                  <option value="Investor">{t.roleInvestor}</option>
+                  <option value="Advisor">{t.roleAdvisor}</option>
                 </select>
               </div>
             )}
@@ -338,6 +370,71 @@ export default function NexusHubApp() {
               <span>{t.hasAccount} <button onClick={() => setAuthMode('signin')} style={{ background: 'none', border: 'none', color: '#0866ff', fontWeight: '700', cursor: 'pointer', padding: 0 }}>{t.btnSignIn}</button></span>
             )}
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Onboarding Questionnaire Screen
+  if (!isOnboarded) {
+    return (
+      <div style={{ fontFamily: 'Segoe UI, Roboto, sans-serif', backgroundColor: '#0f172a', minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '1rem' }}>
+        <div style={{ backgroundColor: '#ffffff', padding: '2.5rem', borderRadius: '16px', width: '100%', maxWidth: '500px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.3)' }}>
+          <h2 style={{ fontSize: '1.4rem', margin: '0 0 0.5rem 0', fontWeight: '800', color: '#0866ff' }}>{t.onboardingTitle}</h2>
+          <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.5rem' }}>{t.onboardingSubtitle} ({userRole})</p>
+
+          <form onSubmit={handleCompleteOnboarding}>
+            {userRole === 'Entrepreneur' && (
+              <>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem' }}>Project Stage / Stade :</label>
+                  <select value={onboardingData.stage} onChange={e => setOnboardingData({...onboardingData, stage: e.target.value})} style={{ width: '100%', padding: '0.7rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                    <option>Idea / Idée</option>
+                    <option>Seed / Amorce</option>
+                    <option>Growth / Croissance</option>
+                  </select>
+                </div>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem' }}>Primary Needs / Besoins prioritaires :</label>
+                  <input type="text" value={onboardingData.needs} onChange={e => setOnboardingData({...onboardingData, needs: e.target.value})} style={{ width: '100%', padding: '0.7rem', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                </div>
+              </>
+            )}
+
+            {userRole === 'Investor' && (
+              <>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem' }}>Investor Type / Type d'investisseur :</label>
+                  <select value={onboardingData.investorType} onChange={e => setOnboardingData({...onboardingData, investorType: e.target.value})} style={{ width: '100%', padding: '0.7rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                    <option>Business Angel</option>
+                    <option>Family Office</option>
+                    <option>Institutional VC</option>
+                  </select>
+                </div>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem' }}>Target Ticket Size / Taille de ticket :</label>
+                  <input type="text" value={onboardingData.ticketSize} onChange={e => setOnboardingData({...onboardingData, ticketSize: e.target.value})} style={{ width: '100%', padding: '0.7rem', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                </div>
+              </>
+            )}
+
+            {userRole === 'Advisor' && (
+              <>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem' }}>Expertise Domain / Domaine d'expertise :</label>
+                  <input type="text" value={onboardingData.expertise} onChange={e => setOnboardingData({...onboardingData, expertise: e.target.value})} style={{ width: '100%', padding: '0.7rem', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                </div>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem' }}>Rate / Modèle tarifaire :</label>
+                  <input type="text" value={onboardingData.serviceRate} onChange={e => setOnboardingData({...onboardingData, serviceRate: e.target.value})} style={{ width: '100%', padding: '0.7rem', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                </div>
+              </>
+            )}
+
+            <button type="submit" style={{ width: '100%', backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.75rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', marginTop: '1rem' }}>
+              {t.btnSaveOnboarding}
+            </button>
+          </form>
         </div>
       </div>
     );
@@ -370,12 +467,14 @@ export default function NexusHubApp() {
         }
       `}</style>
 
+      {/* Marquee Banner */}
       <div style={{ backgroundColor: '#0f172a', color: '#38bdf8', overflow: 'hidden', whiteSpace: 'nowrap', padding: '0.6rem 0', fontSize: '0.85rem', fontWeight: '700', borderBottom: '1px solid #1e293b' }}>
         <div style={{ display: 'inline-block', animation: 'marquee 28s linear infinite' }}>
           {t.banner}
         </div>
       </div>
 
+      {/* Header & Navigation */}
       <header style={{ backgroundColor: '#ffffff', padding: '1rem', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', gap: '1rem', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <div style={{ backgroundColor: '#0866ff', color: '#ffffff', width: '38px', height: '38px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.3rem' }}>N</div>
@@ -385,7 +484,7 @@ export default function NexusHubApp() {
         <nav style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
           <button onClick={() => setActiveTab('projects')} style={{ background: 'none', border: 'none', color: activeTab === 'projects' ? '#0866ff' : '#64748b', fontWeight: '700', cursor: 'pointer', fontSize: '0.9rem', borderBottom: activeTab === 'projects' ? '2px solid #0866ff' : 'none' }}>{t.tabOpportunities}</button>
           <button onClick={() => setActiveTab('providers')} style={{ background: 'none', border: 'none', color: activeTab === 'providers' ? '#0866ff' : '#64748b', fontWeight: '700', cursor: 'pointer', fontSize: '0.9rem', borderBottom: activeTab === 'providers' ? '2px solid #0866ff' : 'none' }}>{t.tabAdvisory}</button>
-          <button onClick={() => setActiveTab('investors')} style={{ background: 'none', border: 'none', color: activeTab === 'investors' ? '#0866ff' : '#64748b', fontWeight: '700', cursor: 'pointer', fontSize: '0.9rem', borderBottom: activeTab === 'investors' ? '2px solid #0866ff' : 'none' }}>{t.tabInvestors}</button>
+          <button onClick={() => setActiveTab('ai_builder')} style={{ background: 'none', border: 'none', color: activeTab === 'ai_builder' ? '#0866ff' : '#64748b', fontWeight: '700', cursor: 'pointer', fontSize: '0.9rem', borderBottom: activeTab === 'ai_builder' ? '2px solid #0866ff' : 'none' }}>{t.tabAiStudio}</button>
           <button onClick={() => setActiveTab('dashboard')} style={{ background: 'none', border: 'none', color: activeTab === 'dashboard' ? '#0866ff' : '#64748b', fontWeight: '700', cursor: 'pointer', fontSize: '0.9rem', borderBottom: activeTab === 'dashboard' ? '2px solid #0866ff' : 'none' }}>{t.tabDashboard} ({myProjects.length})</button>
           
           {isAdmin && (
@@ -410,18 +509,21 @@ export default function NexusHubApp() {
         </div>
       </header>
 
+      {/* Hero Section */}
       <section style={{ backgroundColor: '#0f172a', color: '#ffffff', padding: '3.5rem 1rem', textAlign: 'center' }}>
         <h2 style={{ fontSize: '2.2rem', marginBottom: '0.5rem', fontWeight: '800' }}>{t.heroTitle}</h2>
         <p style={{ color: '#94a3b8', maxWidth: '700px', margin: '0 auto 1.5rem auto', fontSize: '1.05rem', lineHeight: '1.5' }}>
           {t.heroSubtitle}
         </p>
         <div style={{ fontSize: '0.85rem', color: '#38bdf8', fontWeight: '600' }}>
-          User: <strong>{session.user.email}</strong> {isAdmin && <span style={{ color: '#ff9900' }}>(Admin)</span>}
+          Role: <strong>{userRole}</strong> | User: <strong>{session.user.email}</strong> {isAdmin && <span style={{ color: '#ff9900' }}>(Admin)</span>}
         </div>
       </section>
 
+      {/* Main Content Area */}
       <main style={{ maxWidth: '1200px', margin: '2.5rem auto', padding: '0 1rem' }}>
         
+        {/* Tab 1: Opportunities */}
         {activeTab === 'projects' && (
           <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
@@ -472,10 +574,6 @@ export default function NexusHubApp() {
                           <div style={{ width: '100%', height: '8px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
                             <div style={{ width: `${percentage}%`, height: '100%', backgroundColor: '#0866ff', borderRadius: '4px' }}></div>
                           </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#64748b', marginTop: '0.3rem' }}>
-                            <span>{t.goalLabel}: {goal.toLocaleString()} {p.currency || 'USD'}</span>
-                            <span>{t.equityLabel}: <strong>{p.equity_offered}%</strong></span>
-                          </div>
                         </div>
 
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -496,6 +594,7 @@ export default function NexusHubApp() {
           </>
         )}
 
+        {/* Tab 2: Advisory & Experts */}
         {activeTab === 'providers' && (
           <>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
@@ -503,9 +602,6 @@ export default function NexusHubApp() {
                 <h3 style={{ fontSize: '1.2rem', margin: 0, fontWeight: '700' }}>Junior Deal Advisory & Experts</h3>
                 <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>Vetted legal, financial, and tech partners for cross-border deal structuring.</p>
               </div>
-              <button onClick={() => setShowProviderModal(true)} style={{ backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.6rem 1rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }}>
-                + List Advisory Services
-              </button>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
@@ -526,52 +622,17 @@ export default function NexusHubApp() {
           </>
         )}
 
-        {activeTab === 'investors' && (
-          <>
-            <div style={{ marginBottom: '1.5rem' }}>
-              <h3 style={{ fontSize: '1.2rem', margin: 0, fontWeight: '700' }}>Angel & Institutional Investor Portal</h3>
-              <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.2rem' }}>Filter opportunities by ticket capacity.</p>
-              
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: '700', alignSelf: 'center' }}>Ticket Size:</span>
-                {['All', '< 10,000 USD', '10,000 - 50,000 USD', '> 50,000 USD'].map(f => (
-                  <button key={f} onClick={() => setInvestorFilter(f)} style={{ backgroundColor: investorFilter === f ? '#0866ff' : '#e2e8f0', color: investorFilter === f ? '#ffffff' : '#475569', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer' }}>
-                    {f}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
-              {projects
-                .filter(p => p.status === 'verified')
-                .map((p) => (
-                  <div key={p.id} className="animated-card" style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                      <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#0866ff', backgroundColor: '#eff6ff', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>{p.category}</span>
-                      <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#0866ff' }}>Target: {p.funding_goal} USD</span>
-                    </div>
-                    <h4 style={{ fontSize: '1.1rem', margin: '0.5rem 0', fontWeight: '700' }}>{p.title}</h4>
-                    <p style={{ fontSize: '0.85rem', color: '#475569', marginBottom: '1rem', lineHeight: '1.4' }}>{p.summary}</p>
-                    <button onClick={() => setContactModal(p)} style={{ width: '100%', backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.65rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }}>
-                      {t.btnInvest}
-                    </button>
-                  </div>
-                ))}
-            </div>
-          </>
-        )}
-
-        {activeTab === 'dashboard' && (
-          <>
-            <div style={{ marginBottom: '1.5rem' }}>
-              <h3 style={{ fontSize: '1.2rem', margin: 0, fontWeight: '700' }}>My Dashboard & Applications</h3>
-              <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.2rem' }}>Track your deal submissions, packages, and AI site generation.</p>
+        {/* Tab 3: Dedicated AI Site Studio (Paid Value Add) */}
+        {activeTab === 'ai_builder' && (
+          <div style={{ backgroundColor: '#ffffff', padding: '2rem', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+            <div style={{ maxWidth: '700px', marginBottom: '2rem' }}>
+              <h3 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#0866ff', margin: '0 0 0.5rem 0' }}>{t.aiStudioTitle}</h3>
+              <p style={{ fontSize: '0.95rem', color: '#64748b', lineHeight: '1.5' }}>{t.aiStudioDesc}</p>
             </div>
 
             {myProjects.length === 0 ? (
-              <div style={{ backgroundColor: '#ffffff', padding: '2rem', borderRadius: '12px', textAlign: 'center', border: '1px solid #e2e8f0' }}>
-                <p style={{ color: '#64748b', marginBottom: '1rem' }}>You have not submitted any projects yet.</p>
+              <div style={{ backgroundColor: '#f8fafc', padding: '2rem', borderRadius: '12px', textAlign: 'center', border: '1px dashed #cbd5e1' }}>
+                <p style={{ color: '#64748b', marginBottom: '1rem' }}>You need an active project listing to generate an AI website showcase.</p>
                 <button onClick={() => setShowModal(true)} style={{ backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}>
                   {t.btnSubmitProject}
                 </button>
@@ -579,23 +640,20 @@ export default function NexusHubApp() {
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
                 {myProjects.map(p => (
-                  <div key={p.id} style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div key={p.id} style={{ backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '12px', padding: '1.25rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                     <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                        <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#0866ff', backgroundColor: '#eff6ff', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>{p.package || 'Standard'} Package</span>
-                        <span style={{ fontSize: '0.75rem', fontWeight: '700', color: p.status === 'verified' ? '#16a34a' : '#ea580c' }}>{p.status.toUpperCase()}</span>
-                      </div>
-                      <h4 style={{ fontSize: '1.1rem', margin: '0.5rem 0', fontWeight: '800' }}>{p.title}</h4>
+                      <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#0866ff', backgroundColor: '#eff6ff', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>{p.category}</span>
+                      <h4 style={{ fontSize: '1.1rem', margin: '0.75rem 0 0.5rem 0', fontWeight: '800' }}>{p.title}</h4>
                       <p style={{ fontSize: '0.85rem', color: '#475569', marginBottom: '1rem' }}>{p.summary}</p>
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <button onClick={() => handleGenerateAiShowcase(p.id)} style={{ backgroundColor: '#0f172a', color: '#38bdf8', border: 'none', padding: '0.6rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.8rem' }}>
-                        {t.btnGenerateAI}
+                      <button onClick={() => handleGenerateAiShowcase(p.id)} style={{ backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.7rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }}>
+                        {t.btnGenerateShowcase}
                       </button>
                       {p.ai_showcase && (
-                        <button onClick={() => setShowAiModal(p)} style={{ backgroundColor: '#eff6ff', color: '#0866ff', border: '1px solid #bfdbfe', padding: '0.6rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.8rem' }}>
-                          👁️ View AI Landing Page
+                        <button onClick={() => setShowAiModal(p)} style={{ backgroundColor: '#ffffff', color: '#0866ff', border: '1px solid #0866ff', padding: '0.7rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }}>
+                          👁️ Preview AI Website
                         </button>
                       )}
                     </div>
@@ -603,7 +661,66 @@ export default function NexusHubApp() {
                 ))}
               </div>
             )}
-          </>
+          </div>
+        )}
+
+        {/* Tab 4: Dashboard (Strictly Tailored by Role) */}
+        {activeTab === 'dashboard' && (
+          <div>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '1.3rem', margin: 0, fontWeight: '800' }}>My Dashboard ({userRole} Space)</h3>
+              <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.2rem' }}>Personalized interface for your role.</p>
+            </div>
+
+            {/* Entrepreneur Dashboard View */}
+            {userRole === 'Entrepreneur' && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
+                <div style={{ backgroundColor: '#ffffff', padding: '1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                  <h4 style={{ fontSize: '1.1rem', margin: '0 0 0.5rem 0', color: '#0866ff' }}>🚀 Founder Control Panel</h4>
+                  <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1rem' }}>Manage your deal applications and compliance checks.</p>
+                  <button onClick={() => setShowModal(true)} style={{ backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.6rem 1rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }}>
+                    {t.btnSubmitProject}
+                  </button>
+                </div>
+
+                <div style={{ backgroundColor: '#ffffff', padding: '1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                  <h4 style={{ fontSize: '1.1rem', margin: '0 0 0.5rem 0', color: '#0866ff' }}>📊 My Active Submissions ({myProjects.length})</h4>
+                  {myProjects.length === 0 ? (
+                    <p style={{ fontSize: '0.85rem', color: '#64748b' }}>No submissions yet.</p>
+                  ) : (
+                    myProjects.map(p => (
+                      <div key={p.id} style={{ fontSize: '0.85rem', padding: '0.5rem 0', borderBottom: '1px solid #f1f5f9' }}>
+                        <strong>{p.title}</strong> — <span style={{ color: '#16a34a' }}>{p.status}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Investor Dashboard View */}
+            {userRole === 'Investor' && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
+                <div style={{ backgroundColor: '#ffffff', padding: '1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                  <h4 style={{ fontSize: '1.1rem', margin: '0 0 0.5rem 0', color: '#0866ff' }}>💼 Investor Deal Pipeline</h4>
+                  <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1rem' }}>Browse vetted opportunities matching your ticket size.</p>
+                  <button onClick={() => setActiveTab('projects')} style={{ backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.6rem 1rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }}>
+                    Browse Vetted Deals
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Advisor Dashboard View */}
+            {userRole === 'Advisor' && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
+                <div style={{ backgroundColor: '#ffffff', padding: '1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                  <h4 style={{ fontSize: '1.1rem', margin: '0 0 0.5rem 0', color: '#0866ff' }}>🤝 Junior Advisory CRM</h4>
+                  <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1rem' }}>Manage your structuring missions and client intros.</p>
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
       </main>
@@ -666,24 +783,22 @@ export default function NexusHubApp() {
                     onClick={() => setNewProject({...newProject, package: 'Standard'})} 
                     style={{ border: newProject.package === 'Standard' ? '2px solid #0866ff' : '1px solid #cbd5e1', borderRadius: '10px', padding: '0.75rem', cursor: 'pointer', backgroundColor: newProject.package === 'Standard' ? '#eff6ff' : '#ffffff' }}
                   >
-                    <div style={{ fontWeight: '800', fontSize: '0.9rem', color: '#0866ff' }}>{t.pkgStandardTitle}</div>
-                    <div style={{ fontSize: '1rem', fontWeight: '700', margin: '0.2rem 0' }}>{t.pkgStandardPrice}</div>
-                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{t.pkgStandardDesc}</div>
+                    <div style={{ fontWeight: '800', fontSize: '0.85rem', color: '#0866ff' }}>{t.pkgStandardTitle}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.3rem' }}>{t.pkgStandardDesc}</div>
                   </div>
 
                   <div 
                     onClick={() => setNewProject({...newProject, package: 'Premium'})} 
                     style={{ border: newProject.package === 'Premium' ? '2px solid #0866ff' : '1px solid #cbd5e1', borderRadius: '10px', padding: '0.75rem', cursor: 'pointer', backgroundColor: newProject.package === 'Premium' ? '#eff6ff' : '#ffffff' }}
                   >
-                    <div style={{ fontWeight: '800', fontSize: '0.9rem', color: '#0866ff' }}>{t.pkgPremiumTitle}</div>
-                    <div style={{ fontSize: '1rem', fontWeight: '700', margin: '0.2rem 0' }}>{t.pkgPremiumPrice}</div>
-                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{t.pkgPremiumDesc}</div>
+                    <div style={{ fontWeight: '800', fontSize: '0.85rem', color: '#0866ff' }}>{t.pkgPremiumTitle}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.3rem' }}>{t.pkgPremiumDesc}</div>
                   </div>
                 </div>
               </div>
 
               <button type="submit" style={{ width: '100%', backgroundColor: '#0866ff', color: '#ffffff', border: 'none', padding: '0.75rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.95rem' }}>
-                {t.btnSelectPkg}
+                Submit & Pay Fee
               </button>
             </form>
           </div>
